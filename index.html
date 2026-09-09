@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Suivi BFC</title>
+<meta name="description" content="Suivi du budget de fonctionnement courant de l'équipe." />
+<meta name="theme-color" content="#0F766E" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="BFC" />
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   VERSION DE L'APPLICATION  —  numérotation 1.0, puis 1.1, 1.2, 1.3…
+   À chaque nouvelle publication, changez cette ligne ET la ligne
+   « const VERSION » au début de sw.js, avec la même valeur.
+   Le numéro s'affiche en bas de l'onglet « Réglages » : c'est ainsi que
+   vous vérifiez que le téléphone a bien reçu la dernière version.
+   ══════════════════════════════════════════════════════════════════════ */
+window.__BFC_VERSION = '1.0';
+</script>
+
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          cream: '#FAF9F6',
+          ink: '#1A1A1A',
+          accent: '#0F766E',
+          warn: '#D97706',
+          danger: '#B91C1C',
+          line: '#ECEAE4',
+          muted: '#6E6A63'
+        },
+        fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'] },
+        borderRadius: { xl: '12px', '2xl': '16px' }
+      }
+    }
+  };
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<script src="https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
+
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #FAF9F6;
+    color: #1A1A1A;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(20, 24, 22, .04), 0 10px 28px -18px rgba(20, 24, 22, .18);
+  }
+  .hair { border-top: 1px solid #ECEAE4; }
+  .label { display: block; font-size: 12.5px; font-weight: 500; color: #6E6A63; margin-bottom: 6px; }
+  .field {
+    width: 100%; background: #fff; color: #1A1A1A;
+    border: 1px solid #E3E0D9; border-radius: 12px;
+    padding: 10px 12px; font-size: 16px; font-family: inherit;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .field:focus { outline: none; border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .12); }
+  textarea.field { min-height: 76px; resize: vertical; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 12px; padding: 10px 16px; font-size: 15px; font-weight: 500;
+    border: 1px solid transparent; cursor: pointer; font-family: inherit;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease;
+  }
+  .btn:active { opacity: .82; }
+  .btn-primary { background: #0F766E; color: #fff; }
+  .btn-primary:hover { background: #0C625B; }
+  .btn-soft { background: rgba(15, 118, 110, .08); color: #0F766E; }
+  .btn-soft:hover { background: rgba(15, 118, 110, .14); }
+  .btn-ghost { background: #fff; color: #1A1A1A; border-color: #E3E0D9; }
+  .btn-ghost:hover { background: #FAF9F6; }
+  .btn-danger { background: rgba(185, 28, 28, .08); color: #B91C1C; }
+  .btn-danger:hover { background: rgba(185, 28, 28, .14); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+  }
+  :focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; border-radius: 8px; }
+  .fade-in { animation: fadeIn .18s ease-out both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .sheet-in { animation: sheetIn .22s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes sheetIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  .veil-in { animation: veilIn .15s ease-out both; }
+  @keyframes veilIn { from { opacity: 0; } to { opacity: 1; } }
+  .scroll-y { -webkit-overflow-scrolling: touch; }
+  .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: #6E6A63; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot">Chargement de l'application…</div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const RC = window.Recharts;
+
+/* ══════════════════════════════════════════════════════════════
+   1. Utilitaires : format, dates, calculs
+   ══════════════════════════════════════════════════════════════ */
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+const nfEUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+const nfNum = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const eur = (n) => nfEUR.format(Number(n) || 0);
+const num = (n) => nfNum.format(Number(n) || 0);
+
+/* "1 234,56" ou "1234.56" -> 1234.56 */
+function toNum(v) {
+  if (typeof v === 'number') return v;
+  if (!v) return 0;
+  let s = String(v).replace(/[^\d.,-]/g, '').replace(/\s/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/* ISO aaaa-mm-jj -> jj/mm/aaaa */
+function fdate(iso) {
+  if (!iso || iso.length < 10) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+}
+
+const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+function moisLabel(key) {
+  const [y, m] = key.split('-');
+  return `${MOIS[parseInt(m, 10) - 1]} ${y.slice(2)}`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   2. Icônes (tracés Lucide, intégrés pour fonctionner hors ligne)
+   ══════════════════════════════════════════════════════════════ */
+
+const ICONS = {
+  bord: ['M3 3h7v9H3z', 'M14 3h7v5h-7z', 'M14 12h7v9h-7z', 'M3 16h7v5H3z'],
+  idee: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'],
+  ticket: ['M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z', 'M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8', 'M12 17.5v-11'],
+  reglages: ['M21 4h-7', 'M10 4H3', 'M21 12h-9', 'M8 12H3', 'M21 20h-5', 'M12 20H3', 'M14 2v4', 'M8 10v4', 'M16 18v4'],
+  camera: ['M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z', [12, 13, 3]],
+  plus: ['M5 12h14', 'M12 5v14'],
+  trash: ['M3 6h18', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'],
+  pencil: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'],
+  download: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5', 'M12 15V3'],
+  upload: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm17 8-5-5-5 5', 'M12 3v12'],
+  search: [[11, 11, 8], 'm21 21-4.3-4.3'],
+  x: ['M18 6 6 18', 'm6 6 12 12'],
+  check: ['M20 6 9 17l-5-5'],
+  alert: ['m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z', 'M12 9v4', 'M12 17h.01'],
+  image: ['M3 3h18v18H3z', [9, 9, 2], 'm21 15-4-4L7 21'],
+  wallet: ['M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 1-1 1', 'M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4'],
+  reset: ['M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8', 'M3 3v5h5'],
+  refresh: ['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M3 21v-5h5'],
+  cart: ['M8 21h8', [8, 21, 1], [19, 21, 1], 'M2 3h2l2.6 12.6a2 2 0 0 0 2 1.4h7.7a2 2 0 0 0 2-1.6L21 7H5.1'],
+  arrows: ['m21 16-4 4-4-4', 'M17 20V4', 'm3 8 4-4 4 4', 'M7 4v16'],
+  palette: ['M12 2a10 10 0 1 0 0 20 2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H19a3 3 0 0 0 3-3 10 10 0 0 0-10-10.6', [7.5, 10.5, 1], [12, 7.5, 1], [16.5, 10.5, 1]],
+  chevron: ['m9 18 6-6-6-6'],
+  eye: ['M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z', [12, 12, 3]],
+  file: ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z', 'M14 2v5h6'],
+  send: ['M4 12h16', 'm14 6 6 6-6 6']
+};
+
+function Icon({ name, className = 'w-5 h-5', width = 1.75 }) {
+  const parts = ICONS[name] || [];
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={width}
+         strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      {parts.map((p, i) => Array.isArray(p)
+        ? <circle key={i} cx={p[0]} cy={p[1]} r={p[2]} />
+        : <path key={i} d={p} />)}
+    </svg>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3. Base de données locale (IndexedDB) — survit aux mises à jour
+   ══════════════════════════════════════════════════════════════ */
+
+const DB_NAME = 'bfc-db';
+const DB_VERSION = 1;
+const STORES = ['expenses', 'ideas', 'categories', 'settings'];
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      STORES.forEach((s) => {
+        if (!db.objectStoreNames.contains(s)) {
+          db.createObjectStore(s, { keyPath: s === 'settings' ? 'key' : 'id' });
+        }
+      });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+let dbPromise = null;
+const db = () => (dbPromise || (dbPromise = openDB()));
+
+function tx(store, mode, fn) {
+  return db().then((d) => new Promise((resolve, reject) => {
+    const t = d.transaction(store, mode);
+    const req = fn(t.objectStore(store));
+    t.oncomplete = () => resolve(req && req.result);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  }));
+}
+
+const dbAll = (s) => tx(s, 'readonly', (os) => os.getAll());
+const dbPut = (s, v) => tx(s, 'readwrite', (os) => os.put(v));
+const dbDel = (s, k) => tx(s, 'readwrite', (os) => os.delete(k));
+const dbClear = (s) => tx(s, 'readwrite', (os) => os.clear());
+async function dbPutMany(s, arr) { for (const v of arr) await dbPut(s, v); }
+
+/* ══════════════════════════════════════════════════════════════
+   4. Données par défaut
+   ══════════════════════════════════════════════════════════════ */
+
+/* Palette camembert : teal, sauge, sable, terracotta, ardoise, prune */
+const PALETTE = ['#0F766E', '#7E9B7E', '#D8C39B', '#C0785C', '#64748B', '#8A6A85', '#4E8D86', '#A98D6B'];
+
+const CATS_DEFAUT = [
+  { id: 'c-info', name: 'Matériel informatique', color: '#0F766E' },
+  { id: 'c-bur', name: 'Fournitures de bureau', color: '#7E9B7E' },
+  { id: 'c-mob', name: 'Mobilier', color: '#D8C39B' },
+  { id: 'c-out', name: 'Outillage', color: '#C0785C' },
+  { id: 'c-cons', name: 'Consommables', color: '#64748B' },
+  { id: 'c-rest', name: 'Restauration', color: '#8A6A85' },
+  { id: 'c-div', name: 'Divers', color: '#A98D6B' }
+];
+
+const SETTINGS_DEFAUT = {
+  key: 'main',
+  budget: 6000,
+  periode: 'Année 2026',
+  debut: '2026-01-01',
+  fin: '2026-12-31',
+  seeded: false
+};
+
+const EXEMPLES_DEPENSES = [
+  { id: 'e1', label: 'LDLC', amount: 1249.9, date: '2026-03-12', categoryId: 'c-info', note: 'Deux écrans 27 pouces', photo: null },
+  { id: 'e2', label: 'BUREAU VALLEE', amount: 187.4, date: '2026-04-04', categoryId: 'c-bur', note: 'Cartouches et ramettes A4', photo: null },
+  { id: 'e3', label: 'IKEA', amount: 642, date: '2026-05-22', categoryId: 'c-mob', note: 'Deux fauteuils de bureau', photo: null },
+  { id: 'e4', label: 'LEROY MERLIN', amount: 96.75, date: '2026-06-09', categoryId: 'c-out', note: 'Perceuse et coffret de forets', photo: null },
+  { id: 'e5', label: 'CARREFOUR', amount: 58.3, date: '2026-07-17', categoryId: 'c-cons', note: 'Café, thé, gobelets', photo: null },
+  { id: 'e6', label: 'LA BOULANGERIE DU COIN', amount: 74.2, date: '2026-09-03', categoryId: 'c-rest', note: "Petit-déjeuner de l'équipe", photo: null }
+];
+
+const EXEMPLES_IDEES = [
+  { id: 'i1', title: "Stations d'accueil USB-C", description: 'Pour les trois postes en télétravail alterné.', categoryId: 'c-info', unitPrice: 149, qty: 3, supplier: 'LDLC', priority: 'haute', requester: 'Camille', status: 'validee' },
+  { id: 'i2', title: 'Armoire à dossiers', description: 'Rangement des archives du service.', categoryId: 'c-mob', unitPrice: 289, qty: 1, supplier: 'Manutan', priority: 'moyenne', requester: 'Samir', status: 'idee' },
+  { id: 'i3', title: 'Casques antibruit', description: 'Open space bruyant côté couloir.', categoryId: 'c-info', unitPrice: 89.9, qty: 4, supplier: 'Boulanger', priority: 'moyenne', requester: 'Léa', status: 'commandee' },
+  { id: 'i4', title: "Machine à café de l'open space", description: 'Remplacement de la cafetière actuelle.', categoryId: 'c-rest', unitPrice: 379, qty: 1, supplier: 'Darty', priority: 'basse', requester: 'Julien', status: 'idee' }
+];
+
+const PRIORITES = { haute: 'Haute', moyenne: 'Moyenne', basse: 'Basse' };
+const PRIO_RANG = { haute: 0, moyenne: 1, basse: 2 };
+const STATUTS = { idee: 'Idée', validee: 'Validée', commandee: 'Commandée', achetee: 'Achetée' };
+const STATUT_ORDRE = ['idee', 'validee', 'commandee', 'achetee'];
+/* Engagé = validé + commandé (l'argent est réservé mais pas encore dépensé) */
+const STATUTS_ENGAGES = ['validee', 'commandee'];
+
+/* ══════════════════════════════════════════════════════════════
+   5. Photos : compression avant stockage (1200 px max, qualité 0.7)
+   ══════════════════════════════════════════════════════════════ */
+
+function compressImage(file, maxW = 1200, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxW / img.width);
+      const w = Math.max(1, Math.round(img.width * ratio));
+      const h = Math.max(1, Math.round(img.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
+    img.src = url;
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   6. OCR local (Tesseract.js) + extraction par expressions régulières
+   ══════════════════════════════════════════════════════════════ */
+
+const RE_MONTANT = /(\d{1,5}(?:[ .]\d{3})*([.,])\d{2})/g;
+const RE_FORT = /(TOTAL|NET\s*A\s*PAYER|A\s*PAYER|MONTANT|MONTANT\s*DU)/i;
+const RE_FAIBLE = /(TTC|EUR|€|\bCB\b|CARTE|ESPECES|PAIEMENT)/i;
+const RE_EXCLU = /(TVA|T\.V\.A|HT\b|H\.T|RENDU|MONNAIE|SOUS[- ]TOTAL|REMISE|ECO[- ]?PART|DONT)/i;
+const RE_DATE = /\b(\d{1,2})[\/\-. ](\d{1,2})[\/\-. ](\d{2,4})\b/g;
+const RE_HEURE = /\b\d{1,2}\s?[:hH]\s?\d{2}\b/g;
+const RE_BRUIT = /^(TICKET|FACTURE|RECU|RE[ÇC]U|CAISSE|MERCI|BONJOUR|VENTE|DUPLICATA|TEL|SIRET|TVA|CLIENT|COMMANDE|N[°O]|ADRESSE)/i;
+
+/* Dates et heures sont retirées avant de chercher un montant :
+   « 03.09.2026 » ne doit pas être lu comme 3,09 €. */
+function sansDatesNiHeures(ligne) {
+  return ligne.replace(RE_DATE, ' ').replace(RE_HEURE, ' ');
+}
+
+function extraireMontant(lignes) {
+  let best = null;
+  lignes.forEach((ligne, i) => {
+    const propre = sansDatesNiHeures(ligne);
+    const trouves = propre.match(RE_MONTANT);
+    if (!trouves) return;
+
+    let base = 0;
+    if (RE_FORT.test(ligne)) base += 4;
+    if (RE_FAIBLE.test(ligne)) base += 1;
+    if (RE_EXCLU.test(ligne)) base -= 5;
+    base += (i / Math.max(1, lignes.length)) * 0.5; /* les totaux sont plutôt en bas */
+
+    trouves.forEach((brut) => {
+      const valeur = toNum(brut);
+      if (valeur <= 0 || valeur > 100000) return;
+      /* la virgule est le séparateur décimal usuel sur les tickets français */
+      const score = base + (brut.indexOf(',') > -1 ? 0.4 : 0);
+      if (!best || score > best.score ||
+         (Math.abs(score - best.score) < 0.5 && valeur > best.valeur)) {
+        best = { valeur, score };
+      }
+    });
+  });
+  return best ? best.valeur : null;
+}
+
+function extraireDate(texte) {
+  RE_DATE.lastIndex = 0;
+  let m;
+  while ((m = RE_DATE.exec(texte)) !== null) {
+    const jour = parseInt(m[1], 10);
+    const mois = parseInt(m[2], 10);
+    let annee = m[3];
+    if (jour < 1 || jour > 31 || mois < 1 || mois > 12) continue;
+    if (annee.length === 3) continue;
+    if (annee.length === 2) annee = (parseInt(annee, 10) > 70 ? '19' : '20') + annee;
+    if (parseInt(annee, 10) < 1990 || parseInt(annee, 10) > 2100) continue;
+    const jj = String(jour).padStart(2, '0');
+    const mm = String(mois).padStart(2, '0');
+    return `${annee}-${mm}-${jj}`;
+  }
+  return null;
+}
+
+function extraireEnseigne(lignes) {
+  const propre = (l) => l.replace(/[^A-Za-zÀ-ÿ0-9'’&.\- ]/g, '').replace(/\s+/g, ' ').trim();
+  const candidates = lignes.slice(0, 8).map((l) => l.trim())
+    .filter((l) => l.length >= 3 && l.length <= 32 && !RE_BRUIT.test(l) && (l.match(/[A-Za-zÀ-ÿ]/g) || []).length >= 3);
+
+  /* 1. première ligne significative en majuscules */
+  for (const l of candidates) {
+    const majuscules = (l.match(/[A-ZÀ-ÖØ-Þ]/g) || []).length;
+    const minuscules = (l.match(/[a-zà-öø-þ]/g) || []).length;
+    if (majuscules >= 3 && majuscules >= minuscules) return propre(l);
+  }
+  /* 2. repli : ticket reconnu en minuscules, on prend la première ligne utile */
+  return candidates.length ? propre(candidates[0]).toUpperCase() : '';
+}
+
+function analyserTicket(texte) {
+  const lignes = texte.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  return {
+    montant: extraireMontant(lignes),
+    date: extraireDate(texte),
+    enseigne: extraireEnseigne(lignes),
+    lignes: lignes.length
+  };
+}
+
+/* Catégorie proposée d'après l'enseigne */
+const REGLES_CATEGORIE = [
+  { cat: 'c-info', mots: ['LDLC', 'FNAC', 'DARTY', 'BOULANGER', 'MATERIEL.NET', 'TOPACHAT', 'APPLE', 'DELL', 'LENOVO', 'HP ', 'RUE DU COMMERCE', 'INFORMATIQUE', 'GROSBILL'] },
+  { cat: 'c-bur', mots: ['BUREAU VALLEE', 'OFFICE DEPOT', 'LYRECO', 'VIKING', 'MAJUSCULE', 'CULTURA', 'PAPETERIE', 'CALIPAGE', 'PLEIN CIEL'] },
+  { cat: 'c-mob', mots: ['IKEA', 'CONFORAMA', 'MAISONS DU MONDE', 'ALINEA', 'MANUTAN', 'BUT ', 'MOBILIER'] },
+  { cat: 'c-out', mots: ['LEROY MERLIN', 'CASTORAMA', 'BRICO', 'BRICORAMA', 'BRICOMARCHE', 'WELDOM', 'POINT P', 'MR BRICOLAGE', 'OUTILLAGE'] },
+  { cat: 'c-rest', mots: ['BOULANGERIE', 'RESTAURANT', 'TRAITEUR', 'BRASSERIE', 'CAFE', 'PAUL', 'BRIOCHE', 'PIZZ', 'SUSHI', 'MCDONALD'] },
+  { cat: 'c-cons', mots: ['CARREFOUR', 'LECLERC', 'INTERMARCHE', 'AUCHAN', 'LIDL', 'CASINO', 'MONOPRIX', 'ACTION', 'SUPER U', 'FRANPRIX'] }
+];
+
+function categorieSuggeree(enseigne, cats) {
+  if (!enseigne) return null;
+  const e = enseigne.toUpperCase();
+  for (const regle of REGLES_CATEGORIE) {
+    if (regle.mots.some((m) => e.includes(m))) {
+      if (cats.some((c) => c.id === regle.cat)) return regle.cat;
+    }
+  }
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. Export / import de fichiers
+   ══════════════════════════════════════════════════════════════ */
+
+function telecharger(nomFichier, contenu, type, bom) {
+  const blob = new Blob([bom ? '\ufeff' + contenu : contenu], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomFichier;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+const csvCell = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+const csvLigne = (arr) => arr.map(csvCell).join(';');
+
+/* ══════════════════════════════════════════════════════════════
+   8. Composants d'interface réutilisables
+   ══════════════════════════════════════════════════════════════ */
+
+let verrouDefilement = 0;
+
+function Modal({ titre, sousTitre, onClose, children, large }) {
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+    verrouDefilement += 1;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', esc);
+      verrouDefilement = Math.max(0, verrouDefilement - 1);
+      if (verrouDefilement === 0) document.body.style.overflow = '';
+    };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center veil-in"
+         style={{ background: 'rgba(26,26,26,.32)', backdropFilter: 'blur(2px)' }}
+         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className={'sheet-in bg-white w-full ' + (large ? 'sm:max-w-2xl' : 'sm:max-w-lg') +
+        ' max-h-[92vh] overflow-y-auto scroll-y rounded-t-2xl sm:rounded-2xl shadow-xl'}>
+        <div className="sticky top-0 bg-white/95 backdrop-blur px-5 pt-5 pb-3 flex items-start justify-between gap-3 z-10">
+          <div>
+            <h2 className="text-lg font-semibold leading-tight">{titre}</h2>
+            {sousTitre && <p className="text-[13px] text-muted mt-0.5">{sousTitre}</p>}
+          </div>
+          <button className="btn btn-ghost !p-2 !rounded-full shrink-0" onClick={onClose} aria-label="Fermer">
+            <Icon name="x" className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-5 pb-6 safe-b">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Confirm({ titre, texte, libelle = 'Supprimer', onConfirm, onClose }) {
+  return (
+    <Modal titre={titre} onClose={onClose}>
+      <p className="text-[15px] text-ink/80 leading-relaxed">{texte}</p>
+      <div className="flex gap-2 mt-6">
+        <button className="btn btn-ghost flex-1" onClick={onClose}>Annuler</button>
+        <button className="btn btn-danger flex-1" onClick={() => { onConfirm(); onClose(); }}>{libelle}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function Champ({ label, children }) {
+  return <div><label className="label">{label}</label>{children}</div>;
+}
+
+function Vide({ icone, titre, texte, action }) {
+  return (
+    <div className="card p-8 text-center fade-in">
+      <div className="w-12 h-12 rounded-full mx-auto grid place-items-center" style={{ background: 'rgba(15,118,110,.08)', color: '#0F766E' }}>
+        <Icon name={icone} className="w-6 h-6" />
+      </div>
+      <h3 className="mt-4 font-semibold">{titre}</h3>
+      <p className="text-[14px] text-muted mt-1 max-w-xs mx-auto leading-relaxed">{texte}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+function Section({ titre, aside, children }) {
+  return (
+    <section className="mt-6">
+      <div className="flex items-baseline justify-between mb-3 px-1">
+        <h2 className="text-[15px] font-semibold">{titre}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   9. Tableau de bord
+   ══════════════════════════════════════════════════════════════ */
+
+function Jauge({ pctDepense, pctEngage, depassement }) {
+  const couleur = depassement ? '#B91C1C' : '#0F766E';
+  return (
+    <div className="h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(26,26,26,.06)' }}>
+      <div style={{ width: Math.min(100, pctDepense) + '%', background: couleur, transition: 'width .4s ease' }} />
+      <div style={{ width: Math.min(100 - Math.min(100, pctDepense), pctEngage) + '%', background: couleur, opacity: .35, transition: 'width .4s ease' }} />
+    </div>
+  );
+}
+
+function Kpi({ libelle, montant, couleur, note }) {
+  return (
+    <div className="flex-1 min-w-[104px]">
+      <p className="text-[12.5px] text-muted font-medium">{libelle}</p>
+      <p className="tnum font-semibold leading-tight mt-1" style={{ color: couleur, fontSize: 'clamp(20px,5.4vw,26px)' }}>
+        {eur(montant)}
+      </p>
+      {note && <p className="text-[12px] text-muted mt-0.5 tnum">{note}</p>}
+    </div>
+  );
+}
+
+function Camembert({ donnees }) {
+  const total = donnees.reduce((s, d) => s + d.value, 0);
+  if (!total) return null;
+
+  if (!RC) {
+    /* Repli sans Recharts : barres proportionnelles */
+    return (
+      <div className="space-y-3">
+        {donnees.map((d) => (
+          <div key={d.name}>
+            <div className="flex justify-between text-[13px] mb-1">
+              <span>{d.name}</span><span className="tnum font-medium">{eur(d.value)}</span>
+            </div>
+            <div className="h-2 rounded-full" style={{ background: 'rgba(26,26,26,.06)' }}>
+              <div className="h-2 rounded-full" style={{ width: (d.value / total * 100) + '%', background: d.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="sm:flex sm:items-center sm:gap-6">
+      <div className="h-[210px] sm:w-[240px] shrink-0 relative">
+        <RC.ResponsiveContainer width="100%" height="100%">
+          <RC.PieChart>
+            <RC.Pie data={donnees} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    innerRadius={62} outerRadius={92} paddingAngle={2} stroke="#fff" strokeWidth={2}
+                    isAnimationActive={true} animationDuration={450}>
+              {donnees.map((d) => <RC.Cell key={d.name} fill={d.color} />)}
+            </RC.Pie>
+            <RC.Tooltip
+              formatter={(v, n) => [eur(v), n]}
+              contentStyle={{ borderRadius: 12, border: '1px solid #ECEAE4', fontSize: 13, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }} />
+          </RC.PieChart>
+        </RC.ResponsiveContainer>
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+          <div className="text-center">
+            <p className="text-[11.5px] text-muted">Total dépensé</p>
+            <p className="tnum font-semibold text-[17px]">{eur(total)}</p>
+          </div>
+        </div>
+      </div>
+      <ul className="mt-4 sm:mt-0 flex-1 space-y-2.5">
+        {donnees.map((d) => (
+          <li key={d.name} className="flex items-center gap-3 text-[13.5px]">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+            <span className="flex-1 truncate">{d.name}</span>
+            <span className="tnum font-medium">{eur(d.value)}</span>
+            <span className="tnum text-muted w-12 text-right">{Math.round(d.value / total * 100)} %</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Histogramme({ donnees }) {
+  if (!donnees.length) return null;
+  const max = Math.max(...donnees.map((d) => d.total));
+
+  if (!RC) {
+    return (
+      <div className="flex items-end gap-2 h-[160px]">
+        {donnees.map((d) => (
+          <div key={d.key} className="flex-1 flex flex-col items-center justify-end gap-2">
+            <div className="w-full rounded-t-md" style={{ height: (d.total / max * 120) + 'px', background: '#0F766E' }} />
+            <span className="text-[11px] text-muted">{d.mois}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[210px] -ml-2">
+      <RC.ResponsiveContainer width="100%" height="100%">
+        <RC.BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <RC.CartesianGrid vertical={false} stroke="#ECEAE4" />
+          <RC.XAxis dataKey="mois" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: '#6E6A63' }} />
+          <RC.YAxis tickLine={false} axisLine={false} width={54}
+                    tick={{ fontSize: 11.5, fill: '#6E6A63' }}
+                    tickFormatter={(v) => (v >= 1000 ? (v / 1000).toString().replace('.', ',') + ' k' : v)} />
+          <RC.Tooltip cursor={{ fill: 'rgba(15,118,110,.06)' }} formatter={(v) => [eur(v), 'Dépensé']}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #ECEAE4', fontSize: 13, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }} />
+          <RC.Bar dataKey="total" fill="#0F766E" radius={[6, 6, 0, 0]} maxBarSize={44} animationDuration={450} />
+        </RC.BarChart>
+      </RC.ResponsiveContainer>
+    </div>
+  );
+}
+
+function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepense, catNom, catCouleur }) {
+  const depense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const engage = ideas.filter((i) => STATUTS_ENGAGES.includes(i.status))
+                      .reduce((s, i) => s + (i.unitPrice || 0) * (i.qty || 1), 0);
+  const budget = settings.budget || 0;
+  const restant = budget - depense - engage;
+  const pctD = budget ? (depense / budget) * 100 : 0;
+  const pctE = budget ? (engage / budget) * 100 : 0;
+  const depassement = restant < 0;
+  const tension = !depassement && budget > 0 && (depense + engage) / budget >= 0.85;
+
+  const parCategorie = useMemo(() => {
+    const map = new Map();
+    expenses.forEach((e) => map.set(e.categoryId, (map.get(e.categoryId) || 0) + (e.amount || 0)));
+    return Array.from(map.entries())
+      .map(([id, value]) => ({ name: catNom(id), value, color: catCouleur(id) }))
+      .sort((a, b) => b.value - a.value);
+  }, [expenses, cats]);
+
+  const parMois = useMemo(() => {
+    const map = new Map();
+    expenses.forEach((e) => {
+      const k = (e.date || '').slice(0, 7);
+      if (k) map.set(k, (map.get(k) || 0) + (e.amount || 0));
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, total]) => ({ key, mois: moisLabel(key), total }));
+  }, [expenses]);
+
+  const dernieres = [...expenses].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 3);
+
+  return (
+    <div className="fade-in">
+      <div className="card p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[12.5px] text-muted font-medium">Budget alloué · {settings.periode}</p>
+            <p className="tnum font-semibold leading-none mt-2" style={{ fontSize: 'clamp(32px,9vw,44px)' }}>{eur(budget)}</p>
+          </div>
+          <button className="btn btn-soft !px-3 !py-2 shrink-0" onClick={onScan}>
+            <Icon name="camera" className="w-4 h-4" /><span className="hidden sm:inline">Scanner</span>
+          </button>
+        </div>
+
+        <div className="mt-5"><Jauge pctDepense={pctD} pctEngage={pctE} depassement={depassement} /></div>
+        <p className="text-[12px] text-muted mt-2 tnum">
+          {Math.round(pctD)} % dépensé · {Math.round(pctE)} % engagé
+        </p>
+
+        <div className="hair mt-5 pt-5 flex gap-4">
+          <Kpi libelle="Dépensé" montant={depense} couleur="#1A1A1A" note={expenses.length + ' dépense' + (expenses.length > 1 ? 's' : '')} />
+          <Kpi libelle="Engagé" montant={engage} couleur="#D97706" note="validé + commandé" />
+          <Kpi libelle="Restant" montant={restant} couleur={depassement ? '#B91C1C' : '#0F766E'} note={depassement ? 'dépassement' : 'disponible'} />
+        </div>
+      </div>
+
+      {(depassement || tension) && (
+        <div className="mt-4 rounded-2xl p-4 flex gap-3 fade-in"
+             style={{ background: depassement ? 'rgba(185,28,28,.06)' : 'rgba(217,119,6,.07)',
+                      border: '1px solid ' + (depassement ? 'rgba(185,28,28,.22)' : 'rgba(217,119,6,.25)') }}>
+          <Icon name="alert" className="w-5 h-5 shrink-0 mt-0.5" width={2} />
+          <div style={{ color: depassement ? '#B91C1C' : '#D97706' }}>
+            <p className="text-[14px] font-semibold">
+              {depassement ? 'Le budget est dépassé' : 'Le budget est presque consommé'}
+            </p>
+            <p className="text-[13px] mt-0.5 leading-relaxed opacity-90">
+              {depassement
+                ? `Dépenses et engagements dépassent l'enveloppe de ${eur(Math.abs(restant))}. Repassez des idées validées en simples idées pour libérer de la marge.`
+                : `Il reste ${eur(restant)} sur ${eur(budget)}. Vérifiez les idées validées avant d'engager de nouveaux achats.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Section titre="Répartition par catégorie">
+        <div className="card p-5">
+          {parCategorie.length
+            ? <Camembert donnees={parCategorie} />
+            : <p className="text-[14px] text-muted text-center py-6">Aucune dépense enregistrée pour l'instant.</p>}
+        </div>
+      </Section>
+
+      <Section titre="Dépenses par mois">
+        <div className="card p-5">
+          {parMois.length
+            ? <Histogramme donnees={parMois} />
+            : <p className="text-[14px] text-muted text-center py-6">L'histogramme apparaîtra dès la première dépense.</p>}
+        </div>
+      </Section>
+
+      {dernieres.length > 0 && (
+        <Section titre="Dernières dépenses">
+          <div className="card divide-y divide-[#ECEAE4]">
+            {dernieres.map((e, i) => (
+              <button key={e.id} className="w-full flex items-center gap-3 p-4 text-left fade-in"
+                      style={{ animationDelay: i * 40 + 'ms' }} onClick={() => onOuvrirDepense(e)}>
+                <span className="w-2 h-8 rounded-full shrink-0" style={{ background: catCouleur(e.categoryId) }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block font-medium text-[14.5px] truncate">{e.label}</span>
+                  <span className="block text-[12.5px] text-muted tnum">{fdate(e.date)} · {catNom(e.categoryId)}</span>
+                </span>
+                <span className="tnum font-semibold text-[15px]">{eur(e.amount)}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   10. Onglet Idées d'achat
+   ══════════════════════════════════════════════════════════════ */
+
+function BadgePriorite({ p }) {
+  const styles = {
+    haute: { background: 'rgba(185,28,28,.08)', color: '#B91C1C' },
+    moyenne: { background: 'rgba(217,119,6,.10)', color: '#B45309' },
+    basse: { background: 'rgba(26,26,26,.05)', color: '#6E6A63' }
+  };
+  return <span className="chip" style={styles[p] || styles.basse}>{PRIORITES[p] || p}</span>;
+}
+
+function BadgeStatut({ s }) {
+  const styles = {
+    idee: { background: 'rgba(26,26,26,.05)', color: '#6E6A63' },
+    validee: { background: 'rgba(15,118,110,.10)', color: '#0F766E' },
+    commandee: { background: 'rgba(217,119,6,.12)', color: '#B45309' },
+    achetee: { background: 'rgba(126,155,126,.18)', color: '#3F6B4F' }
+  };
+  return <span className="chip" style={styles[s] || styles.idee}>{STATUTS[s] || s}</span>;
+}
+
+function Idees({ ideas, cats, settings, expenses, catNom, catCouleur, onNouvelle, onEditer, onSupprimer, onConvertir, onStatut }) {
+  const [q, setQ] = useState('');
+  const [fPrio, setFPrio] = useState('');
+  const [fCat, setFCat] = useState('');
+  const [fStatut, setFStatut] = useState('');
+  const [tri, setTri] = useState('priorite');
+
+  const totalIdee = (i) => (i.unitPrice || 0) * (i.qty || 1);
+  const depense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+
+  const liste = useMemo(() => {
+    let r = ideas.filter((i) => {
+      if (fPrio && i.priority !== fPrio) return false;
+      if (fCat && i.categoryId !== fCat) return false;
+      if (fStatut && i.status !== fStatut) return false;
+      if (q) {
+        const t = (i.title + ' ' + (i.description || '') + ' ' + (i.supplier || '') + ' ' + (i.requester || '')).toLowerCase();
+        if (!t.includes(q.toLowerCase())) return false;
+      }
+      return true;
+    });
+    const cmp = {
+      priorite: (a, b) => PRIO_RANG[a.priority] - PRIO_RANG[b.priority] || totalIdee(b) - totalIdee(a),
+      prix: (a, b) => totalIdee(b) - totalIdee(a),
+      categorie: (a, b) => catNom(a.categoryId).localeCompare(catNom(b.categoryId)),
+      statut: (a, b) => STATUT_ORDRE.indexOf(a.status) - STATUT_ORDRE.indexOf(b.status),
+      titre: (a, b) => a.title.localeCompare(b.title)
+    };
+    return r.sort(cmp[tri] || cmp.priorite);
+  }, [ideas, q, fPrio, fCat, fStatut, tri, cats]);
+
+  const totalEstime = liste.reduce((s, i) => s + totalIdee(i), 0);
+  const restantSiTout = (settings.budget || 0) - depense -
+    ideas.filter((i) => i.status !== 'achetee').reduce((s, i) => s + totalIdee(i), 0);
+
+  return (
+    <div className="fade-in">
+      <div className="card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[12.5px] text-muted font-medium">Total estimé des idées affichées</p>
+            <p className="tnum font-semibold leading-none mt-2" style={{ fontSize: 'clamp(26px,7vw,34px)' }}>{eur(totalEstime)}</p>
+          </div>
+          <button className="btn btn-primary !px-3 !py-2 shrink-0" onClick={onNouvelle}>
+            <Icon name="plus" className="w-4 h-4" /><span className="hidden sm:inline">Ajouter</span>
+          </button>
+        </div>
+        <div className="hair mt-4 pt-4">
+          <p className="text-[13px] text-muted leading-relaxed">
+            Budget restant si tout est acheté :{' '}
+            <span className="tnum font-semibold" style={{ color: restantSiTout < 0 ? '#B91C1C' : '#0F766E' }}>
+              {eur(restantSiTout)}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" className="w-4 h-4" /></span>
+          <input className="field !pl-10" placeholder="Rechercher une idée, un fournisseur…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex gap-2 overflow-x-auto scroll-y pb-1">
+          <select className="field !w-auto !py-2 text-[14px]" value={fStatut} onChange={(e) => setFStatut(e.target.value)}>
+            <option value="">Tous les statuts</option>
+            {STATUT_ORDRE.map((s) => <option key={s} value={s}>{STATUTS[s]}</option>)}
+          </select>
+          <select className="field !w-auto !py-2 text-[14px]" value={fPrio} onChange={(e) => setFPrio(e.target.value)}>
+            <option value="">Toutes priorités</option>
+            {Object.keys(PRIORITES).map((p) => <option key={p} value={p}>{PRIORITES[p]}</option>)}
+          </select>
+          <select className="field !w-auto !py-2 text-[14px]" value={fCat} onChange={(e) => setFCat(e.target.value)}>
+            <option value="">Toutes catégories</option>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="field !w-auto !py-2 text-[14px]" value={tri} onChange={(e) => setTri(e.target.value)}>
+            <option value="priorite">Tri : priorité</option>
+            <option value="prix">Tri : prix</option>
+            <option value="categorie">Tri : catégorie</option>
+            <option value="statut">Tri : statut</option>
+            <option value="titre">Tri : intitulé</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {liste.length === 0 && (
+          <Vide icone="idee" titre="Aucune idée pour l'instant"
+                texte="Notez ici ce que l'équipe souhaite acheter, avec un prix estimé. Vous saurez tout de suite si le budget suit."
+                action={<button className="btn btn-primary" onClick={onNouvelle}><Icon name="plus" className="w-4 h-4" />Ajouter une idée</button>} />
+        )}
+        {liste.map((i, idx) => (
+          <article key={i.id} className="card p-4 fade-in" style={{ animationDelay: Math.min(idx, 8) * 35 + 'ms' }}>
+            <div className="flex items-start gap-3">
+              <span className="w-2 h-full min-h-[38px] rounded-full shrink-0" style={{ background: catCouleur(i.categoryId) }} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-semibold text-[15px] leading-snug">{i.title}</h3>
+                  <span className="tnum font-semibold text-[16px] shrink-0">{eur(totalIdee(i))}</span>
+                </div>
+                <p className="text-[12.5px] text-muted tnum mt-0.5">
+                  {num(i.unitPrice)} € × {i.qty} · {catNom(i.categoryId)}
+                </p>
+                {i.description && <p className="text-[13.5px] text-ink/75 mt-2 leading-relaxed">{i.description}</p>}
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <BadgePriorite p={i.priority} />
+                  <BadgeStatut s={i.status} />
+                  {i.requester && <span className="text-[12.5px] text-muted">Demandé par {i.requester}</span>}
+                </div>
+                {i.supplier && (
+                  <p className="text-[12.5px] text-muted mt-2 truncate">
+                    {/^https?:\/\//.test(i.supplier)
+                      ? <a href={i.supplier} target="_blank" rel="noopener noreferrer" style={{ color: '#0F766E' }}>{i.supplier}</a>
+                      : i.supplier}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {i.status !== 'achetee' && (
+                    <button className="btn btn-soft !py-1.5 !px-3 !text-[13px]" onClick={() => onConvertir(i)}>
+                      <Icon name="cart" className="w-4 h-4" />Convertir en dépense
+                    </button>
+                  )}
+                  {STATUT_ORDRE.indexOf(i.status) < 2 && (
+                    <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px]"
+                            onClick={() => onStatut(i, STATUT_ORDRE[STATUT_ORDRE.indexOf(i.status) + 1])}>
+                      <Icon name="send" className="w-4 h-4" />
+                      Passer en {STATUTS[STATUT_ORDRE[STATUT_ORDRE.indexOf(i.status) + 1]].toLowerCase()}
+                    </button>
+                  )}
+                  <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px]" onClick={() => onEditer(i)}>
+                    <Icon name="pencil" className="w-4 h-4" />Modifier
+                  </button>
+                  <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px] ml-auto" onClick={() => onSupprimer(i)} aria-label="Supprimer l'idée">
+                    <Icon name="trash" className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   11. Onglet Dépenses
+   ══════════════════════════════════════════════════════════════ */
+
+function Depenses({ expenses, cats, catNom, catCouleur, onScan, onGalerie, onNouvelle, onEditer, onSupprimer, onPhoto }) {
+  const [q, setQ] = useState('');
+  const [tri, setTri] = useState('date-desc');
+  const [fCat, setFCat] = useState('');
+
+  const liste = useMemo(() => {
+    let r = expenses.filter((e) => {
+      if (fCat && e.categoryId !== fCat) return false;
+      if (q) {
+        const t = (e.label + ' ' + (e.note || '') + ' ' + catNom(e.categoryId)).toLowerCase();
+        if (!t.includes(q.toLowerCase())) return false;
+      }
+      return true;
+    });
+    const cmp = {
+      'date-desc': (a, b) => (b.date || '').localeCompare(a.date || ''),
+      'date-asc': (a, b) => (a.date || '').localeCompare(b.date || ''),
+      'montant-desc': (a, b) => b.amount - a.amount,
+      'montant-asc': (a, b) => a.amount - b.amount,
+      'enseigne': (a, b) => a.label.localeCompare(b.label)
+    };
+    return r.sort(cmp[tri]);
+  }, [expenses, q, tri, fCat, cats]);
+
+  const total = liste.reduce((s, e) => s + (e.amount || 0), 0);
+
+  return (
+    <div className="fade-in">
+      <div className="card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[12.5px] text-muted font-medium">
+              {liste.length} dépense{liste.length > 1 ? 's' : ''} affichée{liste.length > 1 ? 's' : ''}
+            </p>
+            <p className="tnum font-semibold leading-none mt-2" style={{ fontSize: 'clamp(26px,7vw,34px)' }}>{eur(total)}</p>
+          </div>
+        </div>
+        <div className="hair mt-4 pt-4 flex flex-wrap gap-2">
+          <button className="btn btn-primary flex-1 min-w-[150px]" onClick={onScan}>
+            <Icon name="camera" className="w-4 h-4" />Scanner un ticket
+          </button>
+          <button className="btn btn-ghost" onClick={onGalerie}>
+            <Icon name="image" className="w-4 h-4" />Galerie
+          </button>
+          <button className="btn btn-ghost" onClick={onNouvelle}>
+            <Icon name="plus" className="w-4 h-4" />Saisie manuelle
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" className="w-4 h-4" /></span>
+          <input className="field !pl-10" placeholder="Rechercher une enseigne, une note…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="flex gap-2 overflow-x-auto scroll-y pb-1">
+          <select className="field !w-auto !py-2 text-[14px]" value={tri} onChange={(e) => setTri(e.target.value)}>
+            <option value="date-desc">Tri : date décroissante</option>
+            <option value="date-asc">Tri : date croissante</option>
+            <option value="montant-desc">Tri : montant décroissant</option>
+            <option value="montant-asc">Tri : montant croissant</option>
+            <option value="enseigne">Tri : enseigne</option>
+          </select>
+          <select className="field !w-auto !py-2 text-[14px]" value={fCat} onChange={(e) => setFCat(e.target.value)}>
+            <option value="">Toutes catégories</option>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {liste.length === 0 && (
+          <Vide icone="ticket" titre="Aucune dépense"
+                texte="Photographiez un ticket : le montant, la date et l'enseigne sont lus sur l'appareil, puis vous validez."
+                action={<button className="btn btn-primary" onClick={onScan}><Icon name="camera" className="w-4 h-4" />Scanner un ticket</button>} />
+        )}
+        {liste.map((e, idx) => (
+          <article key={e.id} className="card p-3.5 flex gap-3 items-center fade-in" style={{ animationDelay: Math.min(idx, 8) * 35 + 'ms' }}>
+            {e.photo ? (
+              <button onClick={() => onPhoto(e.photo)} className="shrink-0" aria-label="Agrandir le ticket">
+                <img src={e.photo} alt="Ticket" className="w-14 h-14 rounded-xl object-cover"
+                     style={{ border: '1px solid #ECEAE4' }} />
+              </button>
+            ) : (
+              <span className="w-14 h-14 rounded-xl shrink-0 grid place-items-center"
+                    style={{ background: 'rgba(26,26,26,.04)', color: '#B5B0A7' }}>
+                <Icon name="ticket" className="w-5 h-5" />
+              </span>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="font-medium text-[15px] truncate">{e.label}</h3>
+                <span className="tnum font-semibold text-[16px] shrink-0">{eur(e.amount)}</span>
+              </div>
+              <p className="text-[12.5px] text-muted tnum mt-0.5 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: catCouleur(e.categoryId) }} />
+                {fdate(e.date)} · {catNom(e.categoryId)}
+              </p>
+              {e.note && <p className="text-[13px] text-ink/70 mt-1 truncate">{e.note}</p>}
+            </div>
+            <div className="flex flex-col gap-1 shrink-0">
+              <button className="btn btn-ghost !p-2" onClick={() => onEditer(e)} aria-label="Modifier"><Icon name="pencil" className="w-4 h-4" /></button>
+              <button className="btn btn-ghost !p-2" onClick={() => onSupprimer(e)} aria-label="Supprimer"><Icon name="trash" className="w-4 h-4" /></button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   12. Formulaires
+   ══════════════════════════════════════════════════════════════ */
+
+function FormDepense({ valeur, cats, onEnregistrer, onClose, onPhoto, onRemplacerPhoto, messageOCR }) {
+  const [f, setF] = useState(() => ({
+    id: valeur.id || null,
+    label: valeur.label || '',
+    amount: valeur.amount != null ? String(valeur.amount).replace('.', ',') : '',
+    date: valeur.date || todayISO(),
+    categoryId: valeur.categoryId || cats[0]?.id || '',
+    note: valeur.note || '',
+    photo: valeur.photo || null,
+    ideaId: valeur.ideaId || null
+  }));
+  const [touche, setTouche] = useState(!!valeur.categoryId);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  /* La photo peut être remplacée pendant que le formulaire est ouvert. */
+  useEffect(() => {
+    if (valeur.photo) setF((p) => (p.photo === valeur.photo ? p : { ...p, photo: valeur.photo }));
+  }, [valeur.photo]);
+
+  const suggestion = (label) => {
+    if (touche) return;
+    const c = categorieSuggeree(label, cats);
+    if (c) set('categoryId', c);
+  };
+
+  const valide = f.label.trim() && toNum(f.amount) > 0 && f.date;
+
+  return (
+    <Modal titre={f.id ? 'Modifier la dépense' : 'Nouvelle dépense'}
+           sousTitre={valeur.ideaId ? "L'idée sera marquée comme achetée." : undefined}
+           onClose={onClose}>
+      {messageOCR && (
+        <div className="rounded-xl p-3 mb-4 text-[13px] leading-relaxed"
+             style={{ background: 'rgba(15,118,110,.06)', color: '#0F766E' }}>
+          {messageOCR}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {f.photo && (
+          <div className="flex gap-3 items-center">
+            <button onClick={() => onPhoto(f.photo)} aria-label="Agrandir le ticket">
+              <img src={f.photo} alt="Ticket" className="w-20 h-20 rounded-xl object-cover" style={{ border: '1px solid #ECEAE4' }} />
+            </button>
+            <div className="flex-1 space-y-2">
+              <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px] w-full" onClick={onRemplacerPhoto}>
+                <Icon name="camera" className="w-4 h-4" />Remplacer la photo
+              </button>
+              <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px] w-full" onClick={() => set('photo', null)}>
+                <Icon name="trash" className="w-4 h-4" />Retirer la photo
+              </button>
+            </div>
+          </div>
+        )}
+        {!f.photo && (
+          <button className="btn btn-ghost w-full" onClick={onRemplacerPhoto}>
+            <Icon name="camera" className="w-4 h-4" />Joindre une photo du ticket
+          </button>
+        )}
+
+        <Champ label="Enseigne">
+          <input className="field" value={f.label} placeholder="Ex. LDLC"
+                 onChange={(e) => set('label', e.target.value)}
+                 onBlur={(e) => suggestion(e.target.value)} />
+        </Champ>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Champ label="Montant (€)">
+            <input className="field tnum" inputMode="decimal" value={f.amount} placeholder="0,00"
+                   onChange={(e) => set('amount', e.target.value)} />
+          </Champ>
+          <Champ label="Date">
+            <input className="field tnum" type="date" value={f.date} onChange={(e) => set('date', e.target.value)} />
+          </Champ>
+        </div>
+
+        <Champ label="Catégorie">
+          <select className="field" value={f.categoryId}
+                  onChange={(e) => { setTouche(true); set('categoryId', e.target.value); }}>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Champ>
+
+        <Champ label="Note (facultatif)">
+          <textarea className="field" value={f.note} placeholder="Détail de l'achat, référence, bénéficiaire…"
+                    onChange={(e) => set('note', e.target.value)} />
+        </Champ>
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button className="btn btn-ghost flex-1" onClick={onClose}>Annuler</button>
+        <button className="btn btn-primary flex-1" disabled={!valide}
+                style={{ opacity: valide ? 1 : .45 }}
+                onClick={() => valide && onEnregistrer({
+                  id: f.id || uid(),
+                  label: f.label.trim(),
+                  amount: toNum(f.amount),
+                  date: f.date,
+                  categoryId: f.categoryId,
+                  note: f.note.trim(),
+                  photo: f.photo,
+                  ideaId: f.ideaId,
+                  createdAt: valeur.createdAt || Date.now()
+                })}>
+          <Icon name="check" className="w-4 h-4" />Enregistrer
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function FormIdee({ valeur, cats, onEnregistrer, onClose }) {
+  const [f, setF] = useState(() => ({
+    id: valeur.id || null,
+    title: valeur.title || '',
+    description: valeur.description || '',
+    categoryId: valeur.categoryId || cats[0]?.id || '',
+    unitPrice: valeur.unitPrice != null ? String(valeur.unitPrice).replace('.', ',') : '',
+    qty: valeur.qty || 1,
+    supplier: valeur.supplier || '',
+    priority: valeur.priority || 'moyenne',
+    requester: valeur.requester || '',
+    status: valeur.status || 'idee'
+  }));
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const total = toNum(f.unitPrice) * (parseInt(f.qty, 10) || 0);
+  const valide = f.title.trim() && toNum(f.unitPrice) >= 0;
+
+  return (
+    <Modal titre={f.id ? "Modifier l'idée" : "Nouvelle idée d'achat"} onClose={onClose}>
+      <div className="space-y-4">
+        <Champ label="Intitulé">
+          <input className="field" value={f.title} placeholder="Ex. Stations d'accueil USB-C"
+                 onChange={(e) => set('title', e.target.value)} />
+        </Champ>
+
+        <Champ label="Description (facultatif)">
+          <textarea className="field" value={f.description} placeholder="À quoi cela servira-t-il ?"
+                    onChange={(e) => set('description', e.target.value)} />
+        </Champ>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Champ label="Prix unitaire (€)">
+            <input className="field tnum" inputMode="decimal" value={f.unitPrice} placeholder="0,00"
+                   onChange={(e) => set('unitPrice', e.target.value)} />
+          </Champ>
+          <Champ label="Quantité">
+            <input className="field tnum" inputMode="numeric" value={f.qty}
+                   onChange={(e) => set('qty', e.target.value.replace(/\D/g, ''))} />
+          </Champ>
+        </div>
+
+        <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+             style={{ background: 'rgba(15,118,110,.06)' }}>
+          <span className="text-[13px] text-muted">Coût total estimé</span>
+          <span className="tnum font-semibold text-[17px]" style={{ color: '#0F766E' }}>{eur(total)}</span>
+        </div>
+
+        <Champ label="Catégorie">
+          <select className="field" value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Champ>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Champ label="Priorité">
+            <select className="field" value={f.priority} onChange={(e) => set('priority', e.target.value)}>
+              {Object.keys(PRIORITES).map((p) => <option key={p} value={p}>{PRIORITES[p]}</option>)}
+            </select>
+          </Champ>
+          <Champ label="Statut">
+            <select className="field" value={f.status} onChange={(e) => set('status', e.target.value)}>
+              {STATUT_ORDRE.map((s) => <option key={s} value={s}>{STATUTS[s]}</option>)}
+            </select>
+          </Champ>
+        </div>
+
+        <Champ label="Fournisseur ou lien">
+          <input className="field" value={f.supplier} placeholder="Ex. LDLC ou https://…"
+                 onChange={(e) => set('supplier', e.target.value)} />
+        </Champ>
+
+        <Champ label="Demandeur">
+          <input className="field" value={f.requester} placeholder="Ex. Camille"
+                 onChange={(e) => set('requester', e.target.value)} />
+        </Champ>
+      </div>
+
+      <div className="flex gap-2 mt-6">
+        <button className="btn btn-ghost flex-1" onClick={onClose}>Annuler</button>
+        <button className="btn btn-primary flex-1" disabled={!valide} style={{ opacity: valide ? 1 : .45 }}
+                onClick={() => valide && onEnregistrer({
+                  id: f.id || uid(),
+                  title: f.title.trim(),
+                  description: f.description.trim(),
+                  categoryId: f.categoryId,
+                  unitPrice: toNum(f.unitPrice),
+                  qty: parseInt(f.qty, 10) || 1,
+                  supplier: f.supplier.trim(),
+                  priority: f.priority,
+                  requester: f.requester.trim(),
+                  status: f.status,
+                  createdAt: valeur.createdAt || Date.now()
+                })}>
+          <Icon name="check" className="w-4 h-4" />Enregistrer
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   13. Onglet Réglages
+   ══════════════════════════════════════════════════════════════ */
+
+function Reglages({ settings, cats, expenses, ideas, onSettings, onCats, onExportCSV, onExportIdees, onExportJSON, onImportJSON, onReset, catNom }) {
+  const [s, setS] = useState(settings);
+  const [budgetTxt, setBudgetTxt] = useState(String(settings.budget).replace('.', ','));
+  useEffect(() => { setS(settings); setBudgetTxt(String(settings.budget).replace('.', ',')); }, [settings]);
+  const fileRef = useRef(null);
+
+  const modifierCat = (id, patch) => onCats(cats.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const ajouterCat = () => onCats([...cats, { id: uid(), name: 'Nouvelle catégorie', color: PALETTE[cats.length % PALETTE.length] }]);
+  const supprimerCat = (id) => {
+    if (cats.length <= 1) return;
+    onCats(cats.filter((c) => c.id !== id), id);
+  };
+  const utilisations = (id) =>
+    expenses.filter((e) => e.categoryId === id).length + ideas.filter((i) => i.categoryId === id).length;
+
+  return (
+    <div className="fade-in space-y-6">
+      <div className="card p-5">
+        <h2 className="font-semibold text-[15px]">Budget alloué</h2>
+        <p className="text-[13px] text-muted mt-1">L'enveloppe de référence pour la période suivie.</p>
+        <div className="mt-4 space-y-4">
+          <Champ label="Montant (€)">
+            <input className="field tnum" inputMode="decimal" value={budgetTxt}
+                   onChange={(e) => setBudgetTxt(e.target.value)}
+                   onBlur={() => onSettings({ ...s, budget: toNum(budgetTxt) })} />
+          </Champ>
+          <Champ label="Intitulé de la période">
+            <input className="field" value={s.periode} placeholder="Ex. Année 2026"
+                   onChange={(e) => setS({ ...s, periode: e.target.value })}
+                   onBlur={() => onSettings(s)} />
+          </Champ>
+          <div className="grid grid-cols-2 gap-3">
+            <Champ label="Début">
+              <input className="field tnum" type="date" value={s.debut}
+                     onChange={(e) => { const v = { ...s, debut: e.target.value }; setS(v); onSettings(v); }} />
+            </Champ>
+            <Champ label="Fin">
+              <input className="field tnum" type="date" value={s.fin}
+                     onChange={(e) => { const v = { ...s, fin: e.target.value }; setS(v); onSettings(v); }} />
+            </Champ>
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-[15px]">Catégories</h2>
+            <p className="text-[13px] text-muted mt-1">Nom et couleur, repris dans le camembert.</p>
+          </div>
+          <button className="btn btn-soft !p-2" onClick={ajouterCat} aria-label="Ajouter une catégorie">
+            <Icon name="plus" className="w-4 h-4" />
+          </button>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {cats.map((c) => (
+            <li key={c.id} className="flex items-center gap-3">
+              <input type="color" value={c.color} onChange={(e) => modifierCat(c.id, { color: e.target.value })}
+                     className="w-9 h-9 rounded-lg shrink-0 cursor-pointer" style={{ border: '1px solid #E3E0D9', padding: 2, background: '#fff' }}
+                     aria-label={'Couleur de ' + c.name} />
+              <input className="field !py-2 flex-1" value={c.name} onChange={(e) => modifierCat(c.id, { name: e.target.value })} />
+              <button className="btn btn-ghost !p-2 shrink-0" onClick={() => supprimerCat(c.id)}
+                      aria-label={'Supprimer ' + c.name} disabled={cats.length <= 1} style={{ opacity: cats.length <= 1 ? .4 : 1 }}>
+                <Icon name="trash" className="w-4 h-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[12.5px] text-muted mt-3 leading-relaxed">
+          Supprimer une catégorie replace ses lignes dans la première catégorie de la liste.
+        </p>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="font-semibold text-[15px]">Sauvegarde et export</h2>
+        <p className="text-[13px] text-muted mt-1">
+          Les données restent sur cet appareil. Exportez régulièrement pour les conserver ailleurs.
+        </p>
+        <div className="mt-4 grid gap-2">
+          <button className="btn btn-ghost justify-start" onClick={onExportCSV}>
+            <Icon name="download" className="w-4 h-4" />Exporter les dépenses (CSV)
+          </button>
+          <button className="btn btn-ghost justify-start" onClick={onExportIdees}>
+            <Icon name="download" className="w-4 h-4" />Exporter les idées (CSV)
+          </button>
+          <button className="btn btn-ghost justify-start" onClick={onExportJSON}>
+            <Icon name="file" className="w-4 h-4" />Sauvegarde complète (JSON)
+          </button>
+          <button className="btn btn-ghost justify-start" onClick={() => fileRef.current.click()}>
+            <Icon name="upload" className="w-4 h-4" />Restaurer une sauvegarde JSON
+          </button>
+          <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+                 onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) onImportJSON(f); }} />
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="font-semibold text-[15px]">Réinitialisation</h2>
+        <p className="text-[13px] text-muted mt-1 leading-relaxed">
+          Efface les {expenses.length} dépenses, les {ideas.length} idées et les réglages de cet appareil,
+          puis recharge les données d'exemple.
+        </p>
+        <button className="btn btn-danger mt-4" onClick={onReset}>
+          <Icon name="reset" className="w-4 h-4" />Réinitialiser les données
+        </button>
+      </div>
+
+      <p className="text-center text-[12px] text-muted pb-2">
+        Suivi BFC · version {window.__BFC_VERSION || '1.0'} · données stockées localement
+      </p>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   14. Écran de scan
+   ══════════════════════════════════════════════════════════════ */
+
+function EcranScan({ scan, onPasser, onAnnuler }) {
+  return (
+    <Modal titre="Lecture du ticket" sousTitre="L'analyse se fait sur votre téléphone, rien n'est envoyé." onClose={onAnnuler}>
+      <div className="space-y-4">
+        {scan.photo && (
+          <img src={scan.photo} alt="Ticket en cours d'analyse"
+               className="w-full max-h-[38vh] object-contain rounded-xl" style={{ background: '#F3F1EC' }} />
+        )}
+        <div>
+          <div className="flex justify-between text-[13px] mb-2">
+            <span className="text-muted">{scan.etape}</span>
+            <span className="tnum font-medium">{scan.progres != null ? scan.progres + ' %' : ''}</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(26,26,26,.06)' }}>
+            <div style={{ width: (scan.progres != null ? scan.progres : 8) + '%', background: '#0F766E', height: '100%', transition: 'width .3s ease' }} />
+          </div>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button className="btn btn-ghost flex-1" onClick={onAnnuler}>Annuler</button>
+          <button className="btn btn-soft flex-1" onClick={onPasser}>Passer l'analyse</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   15. Application
+   ══════════════════════════════════════════════════════════════ */
+
+const ONGLETS = [
+  { id: 'bord', libelle: 'Tableau de bord', court: 'Bord', icone: 'bord' },
+  { id: 'idees', libelle: "Idées d'achat", court: 'Idées', icone: 'idee' },
+  { id: 'depenses', libelle: 'Dépenses', court: 'Dépenses', icone: 'ticket' },
+  { id: 'reglages', libelle: 'Réglages', court: 'Réglages', icone: 'reglages' }
+];
+
+function App() {
+  const [pret, setPret] = useState(false);
+  const [onglet, setOnglet] = useState('bord');
+  const [settings, setSettings] = useState(SETTINGS_DEFAUT);
+  const [cats, setCats] = useState(CATS_DEFAUT);
+  const [expenses, setExpenses] = useState([]);
+  const [ideas, setIdeas] = useState([]);
+
+  const [depenseEdit, setDepenseEdit] = useState(null);
+  const [ideeEdit, setIdeeEdit] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [scan, setScan] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [majDispo, setMajDispo] = useState(false);
+  const [messageOCR, setMessageOCR] = useState(null);
+
+  const camRef = useRef(null);
+  const galRef = useRef(null);
+  const remplaceRef = useRef(null);
+  const workerRef = useRef(null);
+  const annuleRef = useRef(false);
+
+  /* ---- Chargement initial ---- */
+  useEffect(() => {
+    (async () => {
+      try {
+        const [st] = await dbAll('settings');
+        let s = st || SETTINGS_DEFAUT;
+        let c = await dbAll('categories');
+        let e = await dbAll('expenses');
+        let i = await dbAll('ideas');
+
+        if (!s.seeded) {
+          c = CATS_DEFAUT;
+          e = EXEMPLES_DEPENSES.map((x) => ({ ...x, createdAt: Date.now() }));
+          i = EXEMPLES_IDEES.map((x) => ({ ...x, createdAt: Date.now() }));
+          s = { ...SETTINGS_DEFAUT, seeded: true };
+          await dbPutMany('categories', c);
+          await dbPutMany('expenses', e);
+          await dbPutMany('ideas', i);
+          await dbPut('settings', s);
+        }
+        if (!c.length) { c = CATS_DEFAUT; await dbPutMany('categories', c); }
+
+        setSettings(s); setCats(c); setExpenses(e); setIdeas(i);
+      } catch (err) {
+        console.error(err);
+        notifier("Stockage local indisponible. Vérifiez que la navigation privée est désactivée.");
+      } finally {
+        setPret(true);
+        const boot = document.getElementById('boot');
+        if (boot) boot.remove();
+      }
+    })();
+
+    const onMaj = () => setMajDispo(true);
+    window.addEventListener('bfc:update', onMaj);
+    if (window.__BFC_UPDATE_READY) setMajDispo(true);
+    return () => window.removeEventListener('bfc:update', onMaj);
+  }, []);
+
+  const notifier = (texte) => { setToast(texte); setTimeout(() => setToast(null), 3200); };
+
+  const catNom = useCallback((id) => (cats.find((c) => c.id === id) || {}).name || 'Sans catégorie', [cats]);
+  const catCouleur = useCallback((id) => (cats.find((c) => c.id === id) || {}).color || '#B5B0A7', [cats]);
+
+  /* ---- Écritures ---- */
+  const enregistrerDepense = async (d) => {
+    await dbPut('expenses', d);
+    setExpenses((p) => { const i = p.findIndex((x) => x.id === d.id); if (i < 0) return [...p, d]; const n = [...p]; n[i] = d; return n; });
+    if (d.ideaId) {
+      const idee = ideas.find((x) => x.id === d.ideaId);
+      if (idee) { const maj = { ...idee, status: 'achetee' }; await dbPut('ideas', maj); setIdeas((p) => p.map((x) => (x.id === maj.id ? maj : x))); }
+    }
+    setDepenseEdit(null); setMessageOCR(null);
+    notifier('Dépense enregistrée.');
+  };
+
+  const supprimerDepense = async (d) => {
+    await dbDel('expenses', d.id);
+    setExpenses((p) => p.filter((x) => x.id !== d.id));
+    notifier('Dépense supprimée.');
+  };
+
+  const enregistrerIdee = async (i) => {
+    await dbPut('ideas', i);
+    setIdeas((p) => { const k = p.findIndex((x) => x.id === i.id); if (k < 0) return [...p, i]; const n = [...p]; n[k] = i; return n; });
+    setIdeeEdit(null);
+    notifier('Idée enregistrée.');
+  };
+
+  const supprimerIdee = async (i) => {
+    await dbDel('ideas', i.id);
+    setIdeas((p) => p.filter((x) => x.id !== i.id));
+    notifier('Idée supprimée.');
+  };
+
+  const majSettings = async (s) => { const v = { ...s, key: 'main' }; await dbPut('settings', v); setSettings(v); };
+
+  const majCats = async (nouvelles, supprimee) => {
+    const repli = nouvelles[0]?.id;
+    if (supprimee && repli) {
+      const e2 = expenses.map((e) => (e.categoryId === supprimee ? { ...e, categoryId: repli } : e));
+      const i2 = ideas.map((i) => (i.categoryId === supprimee ? { ...i, categoryId: repli } : i));
+      await dbPutMany('expenses', e2.filter((e, k) => e !== expenses[k]));
+      await dbPutMany('ideas', i2.filter((i, k) => i !== ideas[k]));
+      setExpenses(e2); setIdeas(i2);
+      await dbDel('categories', supprimee);
+    }
+    await dbPutMany('categories', nouvelles);
+    setCats(nouvelles);
+  };
+
+  /* ---- Scan et OCR ---- */
+  const ouvrirCamera = () => camRef.current && camRef.current.click();
+  const ouvrirGalerie = () => galRef.current && galRef.current.click();
+
+  const surFichier = async (e, remplacement) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    annuleRef.current = false;
+    if (!remplacement) setScan({ photo: null, etape: 'Compression de la photo…', progres: null });
+
+    let photo = null;
+    try {
+      photo = await compressImage(file);
+    } catch (err) {
+      setScan(null);
+      notifier("Photo illisible. Réessayez ou saisissez la dépense à la main.");
+      return;
+    }
+    if (annuleRef.current) return;
+
+    if (remplacement) {
+      setDepenseEdit((p) => ({ ...(p || {}), photo }));
+      notifier('Photo mise à jour.');
+      return;
+    }
+
+    setScan({ photo, etape: 'Préparation du moteur de lecture…', progres: null });
+
+    if (!window.Tesseract) {
+      setScan(null);
+      ouvrirFormulaireDepense({ photo }, "Le moteur de lecture n'est pas disponible hors ligne au premier usage. Complétez les champs à la main.");
+      return;
+    }
+
+    try {
+      const worker = await Tesseract.createWorker('fra', 1, {
+        logger: (m) => {
+          if (annuleRef.current) return;
+          if (m.status === 'recognizing text') {
+            setScan((s) => (s ? { ...s, etape: 'Lecture du texte…', progres: Math.round((m.progress || 0) * 100) } : s));
+          } else if (m.status && m.status.indexOf('load') === 0) {
+            setScan((s) => (s ? { ...s, etape: 'Téléchargement du dictionnaire français…', progres: null } : s));
+          }
+        }
+      });
+      workerRef.current = worker;
+      const res = await worker.recognize(photo);
+      await worker.terminate();
+      workerRef.current = null;
+      if (annuleRef.current) return;
+
+      const texte = (res && res.data && res.data.text) || '';
+      const info = analyserTicket(texte);
+      setScan(null);
+
+      const trouve = [];
+      if (info.montant) trouve.push('montant');
+      if (info.date) trouve.push('date');
+      if (info.enseigne) trouve.push('enseigne');
+
+      ouvrirFormulaireDepense(
+        {
+          photo,
+          label: info.enseigne || '',
+          amount: info.montant || undefined,
+          date: info.date || todayISO(),
+          categoryId: categorieSuggeree(info.enseigne, cats) || undefined
+        },
+        trouve.length
+          ? 'Lecture terminée : ' + trouve.join(', ') + '. Vérifiez les valeurs avant d\u2019enregistrer.'
+          : "Rien n'a pu être lu sur ce ticket. La photo est jointe, complétez les champs à la main."
+      );
+    } catch (err) {
+      console.error(err);
+      if (workerRef.current) { try { await workerRef.current.terminate(); } catch (e2) {} workerRef.current = null; }
+      if (annuleRef.current) return;
+      setScan(null);
+      ouvrirFormulaireDepense({ photo }, "La lecture a échoué. La photo est jointe, complétez les champs à la main.");
+    }
+  };
+
+  const ouvrirFormulaireDepense = (valeurs, message) => {
+    setMessageOCR(message || null);
+    setDepenseEdit(valeurs || {});
+  };
+
+  const arreterScan = async (ouvrirFormulaire) => {
+    annuleRef.current = true;
+    const photo = scan && scan.photo;
+    if (workerRef.current) { try { await workerRef.current.terminate(); } catch (e) {} workerRef.current = null; }
+    setScan(null);
+    if (ouvrirFormulaire) ouvrirFormulaireDepense({ photo }, 'Analyse ignorée. Complétez les champs à la main.');
+  };
+
+  /* ---- Exports ---- */
+  const exportCSV = () => {
+    const lignes = [csvLigne(['Date', 'Enseigne', 'Catégorie', 'Montant (€)', 'Note', 'Photo'])];
+    [...expenses].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach((e) => {
+      lignes.push(csvLigne([fdate(e.date), e.label, catNom(e.categoryId), num(e.amount), e.note || '', e.photo ? 'oui' : 'non']));
+    });
+    telecharger('bfc-depenses-' + todayISO() + '.csv', lignes.join('\r\n'), 'text/csv;charset=utf-8', true);
+  };
+
+  const exportIdees = () => {
+    const lignes = [csvLigne(['Intitulé', 'Description', 'Catégorie', 'Prix unitaire (€)', 'Quantité', 'Total (€)', 'Priorité', 'Statut', 'Fournisseur', 'Demandeur'])];
+    ideas.forEach((i) => {
+      lignes.push(csvLigne([i.title, i.description || '', catNom(i.categoryId), num(i.unitPrice), i.qty,
+        num((i.unitPrice || 0) * (i.qty || 1)), PRIORITES[i.priority], STATUTS[i.status], i.supplier || '', i.requester || '']));
+    });
+    telecharger('bfc-idees-' + todayISO() + '.csv', lignes.join('\r\n'), 'text/csv;charset=utf-8', true);
+  };
+
+  const exportJSON = () => {
+    const data = { format: 'bfc-backup', version: 1, exporte: new Date().toISOString(), settings, categories: cats, expenses, ideas };
+    telecharger('bfc-sauvegarde-' + todayISO() + '.json', JSON.stringify(data), 'application/json', false);
+  };
+
+  const importJSON = (file) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (!d || !Array.isArray(d.expenses) || !Array.isArray(d.ideas)) throw new Error('format');
+        setConfirm({
+          titre: 'Restaurer cette sauvegarde ?',
+          texte: `Le fichier contient ${d.expenses.length} dépenses et ${d.ideas.length} idées. Les données actuelles de cet appareil seront remplacées.`,
+          libelle: 'Restaurer',
+          action: async () => {
+            for (const s of STORES) await dbClear(s);
+            const s = { ...SETTINGS_DEFAUT, ...(d.settings || {}), key: 'main', seeded: true };
+            const c = (d.categories && d.categories.length) ? d.categories : CATS_DEFAUT;
+            await dbPut('settings', s);
+            await dbPutMany('categories', c);
+            await dbPutMany('expenses', d.expenses);
+            await dbPutMany('ideas', d.ideas);
+            setSettings(s); setCats(c); setExpenses(d.expenses); setIdeas(d.ideas);
+            notifier('Sauvegarde restaurée.');
+          }
+        });
+      } catch (err) {
+        notifier('Fichier illisible : ce n\u2019est pas une sauvegarde BFC.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const reinitialiser = () => {
+    setConfirm({
+      titre: 'Réinitialiser les données ?',
+      texte: 'Toutes les dépenses, idées, photos et réglages de cet appareil seront effacés, puis les données d\u2019exemple seront rechargées. Cette action est définitive.',
+      libelle: 'Réinitialiser',
+      action: async () => {
+        for (const s of STORES) await dbClear(s);
+        const c = CATS_DEFAUT;
+        const e = EXEMPLES_DEPENSES.map((x) => ({ ...x, createdAt: Date.now() }));
+        const i = EXEMPLES_IDEES.map((x) => ({ ...x, createdAt: Date.now() }));
+        const s = { ...SETTINGS_DEFAUT, seeded: true };
+        await dbPutMany('categories', c); await dbPutMany('expenses', e);
+        await dbPutMany('ideas', i); await dbPut('settings', s);
+        setCats(c); setExpenses(e); setIdeas(i); setSettings(s);
+        setOnglet('bord');
+        notifier('Données réinitialisées.');
+      }
+    });
+  };
+
+  const convertir = (idee) => {
+    ouvrirFormulaireDepense({
+      label: idee.supplier && !/^https?:/.test(idee.supplier) ? idee.supplier : idee.title,
+      amount: (idee.unitPrice || 0) * (idee.qty || 1),
+      date: todayISO(),
+      categoryId: idee.categoryId,
+      note: idee.title + (idee.qty > 1 ? ' (× ' + idee.qty + ')' : ''),
+      ideaId: idee.id
+    }, null);
+  };
+
+  const rechargerApp = () => {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg && reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        setTimeout(() => window.location.reload(), 120);
+      });
+    } else {
+      window.location.reload();
+    }
+  };
+
+  if (!pret) return null;
+
+  const contenu = {
+    bord: <TableauDeBord settings={settings} expenses={expenses} ideas={ideas} cats={cats}
+                         catNom={catNom} catCouleur={catCouleur} onScan={ouvrirCamera}
+                         onOuvrirDepense={(e) => { setMessageOCR(null); setDepenseEdit(e); }} />,
+    idees: <Idees ideas={ideas} cats={cats} settings={settings} expenses={expenses}
+                  catNom={catNom} catCouleur={catCouleur}
+                  onNouvelle={() => setIdeeEdit({})} onEditer={setIdeeEdit}
+                  onSupprimer={(i) => setConfirm({ titre: "Supprimer l'idée ?", texte: `« ${i.title} » sera définitivement supprimée.`, action: () => supprimerIdee(i) })}
+                  onConvertir={convertir}
+                  onStatut={(i, s) => enregistrerIdee({ ...i, status: s })} />,
+    depenses: <Depenses expenses={expenses} cats={cats} catNom={catNom} catCouleur={catCouleur}
+                        onScan={ouvrirCamera} onGalerie={ouvrirGalerie}
+                        onNouvelle={() => { setMessageOCR(null); setDepenseEdit({}); }}
+                        onEditer={(e) => { setMessageOCR(null); setDepenseEdit(e); }}
+                        onSupprimer={(e) => setConfirm({ titre: 'Supprimer la dépense ?', texte: `« ${e.label} » (${eur(e.amount)}) sera définitivement supprimée.`, action: () => supprimerDepense(e) })}
+                        onPhoto={setLightbox} />,
+    reglages: <Reglages settings={settings} cats={cats} expenses={expenses} ideas={ideas}
+                        onSettings={majSettings} onCats={majCats} onExportCSV={exportCSV}
+                        onExportIdees={exportIdees} onExportJSON={exportJSON} onImportJSON={importJSON}
+                        onReset={reinitialiser} catNom={catNom} />
+  }[onglet];
+
+  const titreOnglet = ONGLETS.find((o) => o.id === onglet).libelle;
+
+  return (
+    <div className="min-h-screen">
+      {/* Entrées fichiers masquées */}
+      <input ref={camRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => surFichier(e, false)} />
+      <input ref={galRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => surFichier(e, false)} />
+      <input ref={remplaceRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => surFichier(e, true)} />
+
+      {/* Barre latérale (desktop) */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col px-4 py-6"
+             style={{ borderRight: '1px solid #ECEAE4', background: '#fff' }}>
+        <div className="flex items-center gap-3 px-2">
+          <span className="w-10 h-10 rounded-xl grid place-items-center text-white font-semibold text-[13px]"
+                style={{ background: '#0F766E', letterSpacing: '.02em' }}>BFC</span>
+          <div>
+            <p className="font-semibold text-[15px] leading-tight">Suivi BFC</p>
+            <p className="text-[12px] text-muted">{settings.periode}</p>
+          </div>
+        </div>
+        <nav className="mt-8 space-y-1">
+          {ONGLETS.map((o) => (
+            <button key={o.id} onClick={() => setOnglet(o.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14.5px] font-medium"
+                    style={onglet === o.id
+                      ? { background: 'rgba(15,118,110,.09)', color: '#0F766E' }
+                      : { color: '#1A1A1A', background: 'transparent' }}>
+              <Icon name={o.icone} className="w-[18px] h-[18px]" />{o.libelle}
+            </button>
+          ))}
+        </nav>
+        <button className="btn btn-primary mt-6" onClick={ouvrirCamera}>
+          <Icon name="camera" className="w-4 h-4" />Scanner un ticket
+        </button>
+        <div className="mt-auto text-[12px] text-muted px-2">Données stockées sur cet appareil.</div>
+      </aside>
+
+      {/* Contenu */}
+      <div className="md:pl-60">
+        <header className="px-4 sm:px-6 pt-6 pb-1 md:pt-8">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-[22px] sm:text-[26px] font-semibold leading-tight">{titreOnglet}</h1>
+              <p className="text-[13px] text-muted mt-0.5 md:hidden">{settings.periode}</p>
+            </div>
+            <span className="md:hidden w-10 h-10 rounded-xl grid place-items-center text-white font-semibold text-[12.5px]"
+                  style={{ background: '#0F766E' }}>BFC</span>
+          </div>
+        </header>
+
+        <main className="px-4 sm:px-6 pb-32 md:pb-12">
+          <div className="max-w-3xl mx-auto">{contenu}</div>
+        </main>
+      </div>
+
+      {/* Navigation par onglets (mobile) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 safe-b"
+           style={{ background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(10px)', borderTop: '1px solid #ECEAE4' }}>
+        <div className="flex">
+          {ONGLETS.map((o) => (
+            <button key={o.id} onClick={() => setOnglet(o.id)} className="flex-1 flex flex-col items-center gap-1 py-2.5"
+                    style={{ color: onglet === o.id ? '#0F766E' : '#8A857D' }} aria-current={onglet === o.id}>
+              <Icon name={o.icone} className="w-[21px] h-[21px]" width={onglet === o.id ? 2 : 1.6} />
+              <span className="text-[11px] font-medium">{o.court}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Bouton flottant */}
+      {onglet !== 'reglages' && (
+        <button onClick={ouvrirCamera} aria-label="Scanner un ticket"
+                className="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full grid place-items-center text-white"
+                style={{ bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', background: '#0F766E', boxShadow: '0 10px 24px -8px rgba(15,118,110,.6)' }}>
+          <Icon name="camera" className="w-6 h-6" width={1.9} />
+        </button>
+      )}
+
+      {/* Bandeau de mise à jour */}
+      {majDispo && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-40 fade-in w-[92%] max-w-sm"
+             style={{ bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="rounded-2xl px-4 py-3 flex items-center gap-3 text-white"
+               style={{ background: '#1A1A1A', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>
+            <Icon name="refresh" className="w-4 h-4 shrink-0" />
+            <span className="text-[13.5px] flex-1">Nouvelle version disponible</span>
+            <button className="text-[13.5px] font-semibold underline underline-offset-2" onClick={rechargerApp}>Recharger</button>
+            <button onClick={() => setMajDispo(false)} aria-label="Ignorer"><Icon name="x" className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications */}
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-40 fade-in"
+             style={{ bottom: 'calc(' + (majDispo ? '148px' : '88px') + ' + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="rounded-full px-4 py-2.5 text-white text-[13.5px]"
+               style={{ background: '#1A1A1A', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>{toast}</div>
+        </div>
+      )}
+
+      {/* Fenêtres */}
+      {scan && <EcranScan scan={scan} onPasser={() => arreterScan(true)} onAnnuler={() => arreterScan(false)} />}
+
+      {depenseEdit && (
+        <FormDepense valeur={depenseEdit} cats={cats} messageOCR={messageOCR}
+                     onEnregistrer={enregistrerDepense}
+                     onClose={() => { setDepenseEdit(null); setMessageOCR(null); }}
+                     onPhoto={setLightbox}
+                     onRemplacerPhoto={() => remplaceRef.current && remplaceRef.current.click()} />
+      )}
+
+      {ideeEdit && <FormIdee valeur={ideeEdit} cats={cats} onEnregistrer={enregistrerIdee} onClose={() => setIdeeEdit(null)} />}
+
+      {confirm && (
+        <Confirm titre={confirm.titre} texte={confirm.texte} libelle={confirm.libelle}
+                 onConfirm={confirm.action} onClose={() => setConfirm(null)} />
+      )}
+
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] veil-in grid place-items-center p-4"
+             style={{ background: 'rgba(26,26,26,.9)' }} onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="Ticket" className="max-w-full max-h-full rounded-xl object-contain" />
+          <button className="absolute top-4 right-4 text-white p-2" onClick={() => setLightbox(null)} aria-label="Fermer">
+            <Icon name="x" className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script>
+  window.__BFC_UPDATE_READY = false;
+
+  function signalerMaj() {
+    window.__BFC_UPDATE_READY = true;
+    window.dispatchEvent(new CustomEvent('bfc:update'));
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').then(function (reg) {
+        if (reg.waiting && navigator.serviceWorker.controller) signalerMaj();
+
+        reg.addEventListener('updatefound', function () {
+          var nouveau = reg.installing;
+          if (!nouveau) return;
+          nouveau.addEventListener('statechange', function () {
+            if ((nouveau.state === 'installed' || nouveau.state === 'activated') && navigator.serviceWorker.controller) {
+              signalerMaj();
+            }
+          });
+        });
+
+        // Vérifie s'il existe une nouvelle version au retour dans l'app
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') reg.update();
+        });
+        setInterval(function () { reg.update(); }, 60 * 60 * 1000);
+      }).catch(function (err) {
+        console.warn('Service worker non enregistré :', err);
+      });
+    });
+  }
+
+  // Filet de sécurité : si React n'a pas démarré, on le dit clairement.
+  setTimeout(function () {
+    var boot = document.getElementById('boot');
+    if (boot && !document.getElementById('root').firstChild) {
+      boot.innerHTML = '<div style="text-align:center;padding:24px;max-width:320px;line-height:1.6">' +
+        "L'application n'a pas pu démarrer.<br>Connectez-vous une première fois à Internet pour télécharger ses composants, puis rouvrez-la." +
+        '</div>';
+    }
+  }, 12000);
+</script>
+</body>
+</html>
