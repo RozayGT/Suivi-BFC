@@ -10,6 +10,31 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="BFC" />
+
+<script>
+/* ══ Thème jour / nuit ═════════════════════════════════════════════════
+   Trois choix possibles : 'jour', 'nuit' ou 'auto' (réglage du téléphone).
+   Appliqué avant le premier affichage pour éviter tout clignotement, et
+   réutilisé ensuite par l'application via window.__BFC_THEME.            */
+(function () {
+  function memorise() { try { return localStorage.getItem('bfc-theme'); } catch (e) { return null; } }
+  function systeme() {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'nuit' : 'jour';
+  }
+  function appliquer(choix) {
+    var effectif = (choix === 'jour' || choix === 'nuit') ? choix : systeme();
+    document.documentElement.setAttribute('data-theme', effectif);
+    var couleur = document.querySelector('meta[name="theme-color"]');
+    if (couleur) couleur.setAttribute('content', effectif === 'nuit' ? '#131619' : '#0F766E');
+    /* iOS : texte de la barre d'état en blanc quand l'app est en mode nuit */
+    var barre = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (barre) barre.setAttribute('content', effectif === 'nuit' ? 'black-translucent' : 'default');
+    return effectif;
+  }
+  var choix = memorise() || 'auto';
+  window.__BFC_THEME = { choix: choix, effectif: appliquer(choix), appliquer: appliquer };
+})();
+</script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════
    VERSION DE L'APPLICATION  —  numérotation 1.0, puis 1.1, 1.2, 1.3…
@@ -18,7 +43,7 @@
    Le numéro s'affiche en bas de l'onglet « Réglages » : c'est ainsi que
    vous vérifiez que le téléphone a bien reçu la dernière version.
    ══════════════════════════════════════════════════════════════════════ */
-window.__BFC_VERSION = '1.0';
+window.__BFC_VERSION = '1.2';
 </script>
 
 <link rel="manifest" href="./manifest.webmanifest" />
@@ -35,13 +60,14 @@ window.__BFC_VERSION = '1.0';
     theme: {
       extend: {
         colors: {
-          cream: '#FAF9F6',
-          ink: '#1A1A1A',
-          accent: '#0F766E',
-          warn: '#D97706',
-          danger: '#B91C1C',
-          line: '#ECEAE4',
-          muted: '#6E6A63'
+          cream: 'var(--fond)',
+          carte: 'var(--carte)',
+          ink: 'var(--texte)',
+          accent: 'var(--accent)',
+          warn: 'var(--warn)',
+          danger: 'var(--danger)',
+          line: 'var(--ligne)',
+          muted: 'var(--muted)'
         },
         fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'] },
         borderRadius: { xl: '12px', '2xl': '16px' }
@@ -57,32 +83,84 @@ window.__BFC_VERSION = '1.0';
 <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
 
 <style>
-  :root { color-scheme: light; }
+  /* ══ Palette : les deux thèmes vivent dans ces variables ══════════════ */
+  :root {
+    color-scheme: light;
+    --fond:#FAF9F6; --fond-2:#F3F1EC; --carte:#FFFFFF;
+    --texte:#1A1A1A; --texte-doux:rgba(26,26,26,.75); --muted:#6E6A63; --faible:#B5B0A7;
+    --ligne:#ECEAE4; --champ-bord:#E3E0D9; --champ-fond:#FFFFFF;
+    --accent:#0F766E; --accent-fort:#0C625B; --accent-texte:#FFFFFF;
+    --accent-06:rgba(15,118,110,.06); --accent-08:rgba(15,118,110,.08);
+    --accent-10:rgba(15,118,110,.10); --accent-14:rgba(15,118,110,.14);
+    --focus:rgba(15,118,110,.12);
+    --warn:#D97706; --warn-texte:#B45309;
+    --warn-07:rgba(217,119,6,.07); --warn-10:rgba(217,119,6,.10);
+    --warn-12:rgba(217,119,6,.12); --warn-25:rgba(217,119,6,.25);
+    --danger:#B91C1C;
+    --danger-06:rgba(185,28,28,.06); --danger-08:rgba(185,28,28,.08);
+    --danger-14:rgba(185,28,28,.14); --danger-22:rgba(185,28,28,.22);
+    --vert-doux:rgba(126,155,126,.18); --vert-doux-texte:#3F6B4F;
+    --voile-04:rgba(26,26,26,.04); --voile-05:rgba(26,26,26,.05); --voile-06:rgba(26,26,26,.06);
+    --voile:rgba(26,26,26,.32);
+    --nav-fond:rgba(255,255,255,.94);
+    --toast-fond:#1A1A1A;
+    --ombre-carte:0 1px 2px rgba(20,24,22,.04), 0 10px 28px -18px rgba(20,24,22,.18);
+    --ombre-flottant:0 10px 24px -8px rgba(15,118,110,.6);
+  }
+  html[data-theme="nuit"] {
+    color-scheme: dark;
+    --fond:#131619; --fond-2:#1A1E22; --carte:#1D2126;
+    --texte:#F0EFEB; --texte-doux:rgba(240,239,235,.72); --muted:#9A9E9C; --faible:#565C61;
+    --ligne:#2C3238; --champ-bord:#363E45; --champ-fond:#22272C;
+    --accent:#3AAFA3; --accent-fort:#4AC2B5; --accent-texte:#0A1614;
+    --accent-06:rgba(58,175,163,.10); --accent-08:rgba(58,175,163,.14);
+    --accent-10:rgba(58,175,163,.16); --accent-14:rgba(58,175,163,.22);
+    --focus:rgba(58,175,163,.28);
+    --warn:#E9A23B; --warn-texte:#F0B45C;
+    --warn-07:rgba(233,162,59,.10); --warn-10:rgba(233,162,59,.14);
+    --warn-12:rgba(233,162,59,.16); --warn-25:rgba(233,162,59,.35);
+    --danger:#F27272;
+    --danger-06:rgba(242,114,114,.10); --danger-08:rgba(242,114,114,.14);
+    --danger-14:rgba(242,114,114,.20); --danger-22:rgba(242,114,114,.35);
+    --vert-doux:rgba(126,155,126,.22); --vert-doux-texte:#9DC4A6;
+    --voile-04:rgba(255,255,255,.04); --voile-05:rgba(255,255,255,.06); --voile-06:rgba(255,255,255,.08);
+    --voile:rgba(0,0,0,.6);
+    --nav-fond:rgba(29,33,38,.94);
+    --toast-fond:#2B3138;
+    --ombre-carte:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -18px rgba(0,0,0,.65);
+    --ombre-flottant:0 10px 24px -8px rgba(0,0,0,.6);
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  html { background: var(--fond); }
   body {
-    background: #FAF9F6;
-    color: #1A1A1A;
+    background: var(--fond);
+    color: var(--texte);
     font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    transition: background-color .2s ease, color .2s ease;
   }
   .tnum { font-variant-numeric: tabular-nums; }
   .card {
-    background: #fff;
+    background: var(--carte);
     border-radius: 16px;
-    box-shadow: 0 1px 2px rgba(20, 24, 22, .04), 0 10px 28px -18px rgba(20, 24, 22, .18);
+    box-shadow: var(--ombre-carte);
+    transition: background-color .2s ease, box-shadow .2s ease;
   }
-  .hair { border-top: 1px solid #ECEAE4; }
-  .label { display: block; font-size: 12.5px; font-weight: 500; color: #6E6A63; margin-bottom: 6px; }
+  .hair { border-top: 1px solid var(--ligne); }
+  .label { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+  .texte-doux { color: var(--texte-doux); }
+  .sur-accent { color: var(--accent-texte); }
   .field {
-    width: 100%; background: #fff; color: #1A1A1A;
-    border: 1px solid #E3E0D9; border-radius: 12px;
+    width: 100%; background: var(--champ-fond); color: var(--texte);
+    border: 1px solid var(--champ-bord); border-radius: 12px;
     padding: 10px 12px; font-size: 16px; font-family: inherit;
-    transition: border-color .15s ease, box-shadow .15s ease;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .2s ease;
   }
-  .field:focus { outline: none; border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .12); }
+  .field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
   textarea.field { min-height: 76px; resize: vertical; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -91,31 +169,35 @@ window.__BFC_VERSION = '1.0';
     transition: background-color .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease;
   }
   .btn:active { opacity: .82; }
-  .btn-primary { background: #0F766E; color: #fff; }
-  .btn-primary:hover { background: #0C625B; }
-  .btn-soft { background: rgba(15, 118, 110, .08); color: #0F766E; }
-  .btn-soft:hover { background: rgba(15, 118, 110, .14); }
-  .btn-ghost { background: #fff; color: #1A1A1A; border-color: #E3E0D9; }
-  .btn-ghost:hover { background: #FAF9F6; }
-  .btn-danger { background: rgba(185, 28, 28, .08); color: #B91C1C; }
-  .btn-danger:hover { background: rgba(185, 28, 28, .14); }
+  .btn-primary { background: var(--accent); color: var(--accent-texte); }
+  .btn-primary:hover { background: var(--accent-fort); }
+  .btn-soft { background: var(--accent-08); color: var(--accent); }
+  .btn-soft:hover { background: var(--accent-14); }
+  .btn-ghost { background: var(--carte); color: var(--texte); border-color: var(--champ-bord); }
+  .btn-ghost:hover { background: var(--fond); }
+  .btn-danger { background: var(--danger-08); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-14); }
   .chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
   }
-  :focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; border-radius: 8px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
   .fade-in { animation: fadeIn .18s ease-out both; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  /* apparition sans transform : pour les éléments déjà centrés ou positionnés */
+  .pop-in { animation: popIn .18s ease-out both; }
+  @keyframes popIn { from { opacity: 0; } to { opacity: 1; } }
   .sheet-in { animation: sheetIn .22s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes sheetIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-  .veil-in { animation: veilIn .15s ease-out both; }
-  @keyframes veilIn { from { opacity: 0; } to { opacity: 1; } }
+  .veil-in { animation: popIn .15s ease-out both; }
   .scroll-y { -webkit-overflow-scrolling: touch; }
   .safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  /* évite que le titre passe sous l'heure et la batterie de l'iPhone */
+  .safe-t { padding-top: calc(env(safe-area-inset-top, 0px) + 22px); }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
-  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: #6E6A63; font-size: 14px; }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -123,7 +205,7 @@ window.__BFC_VERSION = '1.0';
 <div id="boot">Chargement de l'application…</div>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const { useState, useEffect, useMemo, useRef, useCallback, useContext } = React;
 const RC = window.Recharts;
 
 /* ══════════════════════════════════════════════════════════════
@@ -191,7 +273,11 @@ const ICONS = {
   chevron: ['m9 18 6-6-6-6'],
   eye: ['M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z', [12, 12, 3]],
   file: ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z', 'M14 2v5h6'],
-  send: ['M4 12h16', 'm14 6 6 6-6 6']
+  send: ['M4 12h16', 'm14 6 6 6-6 6'],
+  soleil: [[12, 12, 4], 'M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41',
+           'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'],
+  lune: ['M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'],
+  telephone: ['M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z', 'M12 18h.01']
 };
 
 function Icon({ name, className = 'w-5 h-5', width = 1.75 }) {
@@ -255,6 +341,18 @@ async function dbPutMany(s, arr) { for (const v of arr) await dbPut(s, v); }
 
 /* Palette camembert : teal, sauge, sable, terracotta, ardoise, prune */
 const PALETTE = ['#0F766E', '#7E9B7E', '#D8C39B', '#C0785C', '#64748B', '#8A6A85', '#4E8D86', '#A98D6B'];
+
+/* Les graphiques sont dessinés en SVG : ils reçoivent de vraies couleurs,
+   pas des variables CSS. */
+const COULEURS_GRAPHIQUE = {
+  jour: { grille: '#ECEAE4', axe: '#6E6A63', barre: '#0F766E', carte: '#FFFFFF', bord: '#ECEAE4',
+          texte: '#1A1A1A', curseur: 'rgba(15,118,110,.06)', ombre: '0 8px 24px -12px rgba(0,0,0,.25)' },
+  nuit: { grille: '#2C3238', axe: '#9A9E9C', barre: '#3AAFA3', carte: '#1D2126', bord: '#2C3238',
+          texte: '#F0EFEB', curseur: 'rgba(58,175,163,.12)', ombre: '0 8px 24px -12px rgba(0,0,0,.7)' }
+};
+
+const ThemeCtx = React.createContext('jour');
+const useGraphique = () => COULEURS_GRAPHIQUE[useContext(ThemeCtx)] || COULEURS_GRAPHIQUE.jour;
 
 const CATS_DEFAUT = [
   { id: 'c-info', name: 'Matériel informatique', color: '#0F766E' },
@@ -469,11 +567,11 @@ function Modal({ titre, sousTitre, onClose, children, large }) {
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center veil-in"
-         style={{ background: 'rgba(26,26,26,.32)', backdropFilter: 'blur(2px)' }}
+         style={{ background: 'var(--voile)', backdropFilter: 'blur(2px)' }}
          onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={'sheet-in bg-white w-full ' + (large ? 'sm:max-w-2xl' : 'sm:max-w-lg') +
+      <div className={'sheet-in bg-carte w-full ' + (large ? 'sm:max-w-2xl' : 'sm:max-w-lg') +
         ' max-h-[92vh] overflow-y-auto scroll-y rounded-t-2xl sm:rounded-2xl shadow-xl'}>
-        <div className="sticky top-0 bg-white/95 backdrop-blur px-5 pt-5 pb-3 flex items-start justify-between gap-3 z-10">
+        <div className="sticky top-0 bg-carte px-5 pt-5 pb-3 flex items-start justify-between gap-3 z-10">
           <div>
             <h2 className="text-lg font-semibold leading-tight">{titre}</h2>
             {sousTitre && <p className="text-[13px] text-muted mt-0.5">{sousTitre}</p>}
@@ -491,7 +589,7 @@ function Modal({ titre, sousTitre, onClose, children, large }) {
 function Confirm({ titre, texte, libelle = 'Supprimer', onConfirm, onClose }) {
   return (
     <Modal titre={titre} onClose={onClose}>
-      <p className="text-[15px] text-ink/80 leading-relaxed">{texte}</p>
+      <p className="text-[15px] texte-doux leading-relaxed">{texte}</p>
       <div className="flex gap-2 mt-6">
         <button className="btn btn-ghost flex-1" onClick={onClose}>Annuler</button>
         <button className="btn btn-danger flex-1" onClick={() => { onConfirm(); onClose(); }}>{libelle}</button>
@@ -507,7 +605,7 @@ function Champ({ label, children }) {
 function Vide({ icone, titre, texte, action }) {
   return (
     <div className="card p-8 text-center fade-in">
-      <div className="w-12 h-12 rounded-full mx-auto grid place-items-center" style={{ background: 'rgba(15,118,110,.08)', color: '#0F766E' }}>
+      <div className="w-12 h-12 rounded-full mx-auto grid place-items-center" style={{ background: 'var(--accent-08)', color: 'var(--accent)' }}>
         <Icon name={icone} className="w-6 h-6" />
       </div>
       <h3 className="mt-4 font-semibold">{titre}</h3>
@@ -534,9 +632,9 @@ function Section({ titre, aside, children }) {
    ══════════════════════════════════════════════════════════════ */
 
 function Jauge({ pctDepense, pctEngage, depassement }) {
-  const couleur = depassement ? '#B91C1C' : '#0F766E';
+  const couleur = depassement ? 'var(--danger)' : 'var(--accent)';
   return (
-    <div className="h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(26,26,26,.06)' }}>
+    <div className="h-3 rounded-full overflow-hidden flex" style={{ background: 'var(--voile-06)' }}>
       <div style={{ width: Math.min(100, pctDepense) + '%', background: couleur, transition: 'width .4s ease' }} />
       <div style={{ width: Math.min(100 - Math.min(100, pctDepense), pctEngage) + '%', background: couleur, opacity: .35, transition: 'width .4s ease' }} />
     </div>
@@ -556,6 +654,7 @@ function Kpi({ libelle, montant, couleur, note }) {
 }
 
 function Camembert({ donnees }) {
+  const g = useGraphique();
   const total = donnees.reduce((s, d) => s + d.value, 0);
   if (!total) return null;
 
@@ -568,7 +667,7 @@ function Camembert({ donnees }) {
             <div className="flex justify-between text-[13px] mb-1">
               <span>{d.name}</span><span className="tnum font-medium">{eur(d.value)}</span>
             </div>
-            <div className="h-2 rounded-full" style={{ background: 'rgba(26,26,26,.06)' }}>
+            <div className="h-2 rounded-full" style={{ background: 'var(--voile-06)' }}>
               <div className="h-2 rounded-full" style={{ width: (d.value / total * 100) + '%', background: d.color }} />
             </div>
           </div>
@@ -583,13 +682,15 @@ function Camembert({ donnees }) {
         <RC.ResponsiveContainer width="100%" height="100%">
           <RC.PieChart>
             <RC.Pie data={donnees} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    innerRadius={62} outerRadius={92} paddingAngle={2} stroke="#fff" strokeWidth={2}
+                    innerRadius={62} outerRadius={92} paddingAngle={2} stroke={g.carte} strokeWidth={2}
                     isAnimationActive={true} animationDuration={450}>
               {donnees.map((d) => <RC.Cell key={d.name} fill={d.color} />)}
             </RC.Pie>
             <RC.Tooltip
               formatter={(v, n) => [eur(v), n]}
-              contentStyle={{ borderRadius: 12, border: '1px solid #ECEAE4', fontSize: 13, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }} />
+              itemStyle={{ color: g.texte }}
+              contentStyle={{ borderRadius: 12, border: '1px solid ' + g.bord, background: g.carte,
+                              color: g.texte, fontSize: 13, boxShadow: g.ombre }} />
           </RC.PieChart>
         </RC.ResponsiveContainer>
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
@@ -614,6 +715,7 @@ function Camembert({ donnees }) {
 }
 
 function Histogramme({ donnees }) {
+  const g = useGraphique();
   if (!donnees.length) return null;
   const max = Math.max(...donnees.map((d) => d.total));
 
@@ -622,7 +724,7 @@ function Histogramme({ donnees }) {
       <div className="flex items-end gap-2 h-[160px]">
         {donnees.map((d) => (
           <div key={d.key} className="flex-1 flex flex-col items-center justify-end gap-2">
-            <div className="w-full rounded-t-md" style={{ height: (d.total / max * 120) + 'px', background: '#0F766E' }} />
+            <div className="w-full rounded-t-md" style={{ height: (d.total / max * 120) + 'px', background: 'var(--accent)' }} />
             <span className="text-[11px] text-muted">{d.mois}</span>
           </div>
         ))}
@@ -634,14 +736,16 @@ function Histogramme({ donnees }) {
     <div className="h-[210px] -ml-2">
       <RC.ResponsiveContainer width="100%" height="100%">
         <RC.BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <RC.CartesianGrid vertical={false} stroke="#ECEAE4" />
-          <RC.XAxis dataKey="mois" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: '#6E6A63' }} />
+          <RC.CartesianGrid vertical={false} stroke={g.grille} />
+          <RC.XAxis dataKey="mois" tickLine={false} axisLine={false} tick={{ fontSize: 11.5, fill: g.axe }} />
           <RC.YAxis tickLine={false} axisLine={false} width={54}
-                    tick={{ fontSize: 11.5, fill: '#6E6A63' }}
+                    tick={{ fontSize: 11.5, fill: g.axe }}
                     tickFormatter={(v) => (v >= 1000 ? (v / 1000).toString().replace('.', ',') + ' k' : v)} />
-          <RC.Tooltip cursor={{ fill: 'rgba(15,118,110,.06)' }} formatter={(v) => [eur(v), 'Dépensé']}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #ECEAE4', fontSize: 13, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }} />
-          <RC.Bar dataKey="total" fill="#0F766E" radius={[6, 6, 0, 0]} maxBarSize={44} animationDuration={450} />
+          <RC.Tooltip cursor={{ fill: g.curseur }} formatter={(v) => [eur(v), 'Dépensé']}
+                      itemStyle={{ color: g.texte }}
+                      contentStyle={{ borderRadius: 12, border: '1px solid ' + g.bord, background: g.carte,
+                                      color: g.texte, fontSize: 13, boxShadow: g.ombre }} />
+          <RC.Bar dataKey="total" fill={g.barre} radius={[6, 6, 0, 0]} maxBarSize={44} animationDuration={450} />
         </RC.BarChart>
       </RC.ResponsiveContainer>
     </div>
@@ -698,18 +802,18 @@ function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepens
         </p>
 
         <div className="hair mt-5 pt-5 flex gap-4">
-          <Kpi libelle="Dépensé" montant={depense} couleur="#1A1A1A" note={expenses.length + ' dépense' + (expenses.length > 1 ? 's' : '')} />
-          <Kpi libelle="Engagé" montant={engage} couleur="#D97706" note="validé + commandé" />
-          <Kpi libelle="Restant" montant={restant} couleur={depassement ? '#B91C1C' : '#0F766E'} note={depassement ? 'dépassement' : 'disponible'} />
+          <Kpi libelle="Dépensé" montant={depense} couleur="var(--texte)" note={expenses.length + ' dépense' + (expenses.length > 1 ? 's' : '')} />
+          <Kpi libelle="Engagé" montant={engage} couleur="var(--warn)" note="validé + commandé" />
+          <Kpi libelle="Restant" montant={restant} couleur={depassement ? 'var(--danger)' : 'var(--accent)'} note={depassement ? 'dépassement' : 'disponible'} />
         </div>
       </div>
 
       {(depassement || tension) && (
         <div className="mt-4 rounded-2xl p-4 flex gap-3 fade-in"
-             style={{ background: depassement ? 'rgba(185,28,28,.06)' : 'rgba(217,119,6,.07)',
-                      border: '1px solid ' + (depassement ? 'rgba(185,28,28,.22)' : 'rgba(217,119,6,.25)') }}>
+             style={{ background: depassement ? 'var(--danger-06)' : 'var(--warn-07)',
+                      border: '1px solid ' + (depassement ? 'var(--danger-22)' : 'var(--warn-25)') }}>
           <Icon name="alert" className="w-5 h-5 shrink-0 mt-0.5" width={2} />
-          <div style={{ color: depassement ? '#B91C1C' : '#D97706' }}>
+          <div style={{ color: depassement ? 'var(--danger)' : 'var(--warn)' }}>
             <p className="text-[14px] font-semibold">
               {depassement ? 'Le budget est dépassé' : 'Le budget est presque consommé'}
             </p>
@@ -740,7 +844,7 @@ function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepens
 
       {dernieres.length > 0 && (
         <Section titre="Dernières dépenses">
-          <div className="card divide-y divide-[#ECEAE4]">
+          <div className="card divide-y divide-[var(--ligne)]">
             {dernieres.map((e, i) => (
               <button key={e.id} className="w-full flex items-center gap-3 p-4 text-left fade-in"
                       style={{ animationDelay: i * 40 + 'ms' }} onClick={() => onOuvrirDepense(e)}>
@@ -765,19 +869,19 @@ function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepens
 
 function BadgePriorite({ p }) {
   const styles = {
-    haute: { background: 'rgba(185,28,28,.08)', color: '#B91C1C' },
-    moyenne: { background: 'rgba(217,119,6,.10)', color: '#B45309' },
-    basse: { background: 'rgba(26,26,26,.05)', color: '#6E6A63' }
+    haute: { background: 'var(--danger-08)', color: 'var(--danger)' },
+    moyenne: { background: 'var(--warn-10)', color: 'var(--warn-texte)' },
+    basse: { background: 'var(--voile-05)', color: 'var(--muted)' }
   };
   return <span className="chip" style={styles[p] || styles.basse}>{PRIORITES[p] || p}</span>;
 }
 
 function BadgeStatut({ s }) {
   const styles = {
-    idee: { background: 'rgba(26,26,26,.05)', color: '#6E6A63' },
-    validee: { background: 'rgba(15,118,110,.10)', color: '#0F766E' },
-    commandee: { background: 'rgba(217,119,6,.12)', color: '#B45309' },
-    achetee: { background: 'rgba(126,155,126,.18)', color: '#3F6B4F' }
+    idee: { background: 'var(--voile-05)', color: 'var(--muted)' },
+    validee: { background: 'var(--accent-10)', color: 'var(--accent)' },
+    commandee: { background: 'var(--warn-12)', color: 'var(--warn-texte)' },
+    achetee: { background: 'var(--vert-doux)', color: 'var(--vert-doux-texte)' }
   };
   return <span className="chip" style={styles[s] || styles.idee}>{STATUTS[s] || s}</span>;
 }
@@ -832,7 +936,7 @@ function Idees({ ideas, cats, settings, expenses, catNom, catCouleur, onNouvelle
         <div className="hair mt-4 pt-4">
           <p className="text-[13px] text-muted leading-relaxed">
             Budget restant si tout est acheté :{' '}
-            <span className="tnum font-semibold" style={{ color: restantSiTout < 0 ? '#B91C1C' : '#0F766E' }}>
+            <span className="tnum font-semibold" style={{ color: restantSiTout < 0 ? 'var(--danger)' : 'var(--accent)' }}>
               {eur(restantSiTout)}
             </span>
           </p>
@@ -885,7 +989,7 @@ function Idees({ ideas, cats, settings, expenses, catNom, catCouleur, onNouvelle
                 <p className="text-[12.5px] text-muted tnum mt-0.5">
                   {num(i.unitPrice)} € × {i.qty} · {catNom(i.categoryId)}
                 </p>
-                {i.description && <p className="text-[13.5px] text-ink/75 mt-2 leading-relaxed">{i.description}</p>}
+                {i.description && <p className="text-[13.5px] texte-doux mt-2 leading-relaxed">{i.description}</p>}
                 <div className="flex flex-wrap items-center gap-2 mt-3">
                   <BadgePriorite p={i.priority} />
                   <BadgeStatut s={i.status} />
@@ -894,7 +998,7 @@ function Idees({ ideas, cats, settings, expenses, catNom, catCouleur, onNouvelle
                 {i.supplier && (
                   <p className="text-[12.5px] text-muted mt-2 truncate">
                     {/^https?:\/\//.test(i.supplier)
-                      ? <a href={i.supplier} target="_blank" rel="noopener noreferrer" style={{ color: '#0F766E' }}>{i.supplier}</a>
+                      ? <a href={i.supplier} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{i.supplier}</a>
                       : i.supplier}
                   </p>
                 )}
@@ -1012,11 +1116,11 @@ function Depenses({ expenses, cats, catNom, catCouleur, onScan, onGalerie, onNou
             {e.photo ? (
               <button onClick={() => onPhoto(e.photo)} className="shrink-0" aria-label="Agrandir le ticket">
                 <img src={e.photo} alt="Ticket" className="w-14 h-14 rounded-xl object-cover"
-                     style={{ border: '1px solid #ECEAE4' }} />
+                     style={{ border: '1px solid var(--ligne)' }} />
               </button>
             ) : (
               <span className="w-14 h-14 rounded-xl shrink-0 grid place-items-center"
-                    style={{ background: 'rgba(26,26,26,.04)', color: '#B5B0A7' }}>
+                    style={{ background: 'var(--voile-04)', color: 'var(--faible)' }}>
                 <Icon name="ticket" className="w-5 h-5" />
               </span>
             )}
@@ -1029,7 +1133,7 @@ function Depenses({ expenses, cats, catNom, catCouleur, onScan, onGalerie, onNou
                 <span className="w-2 h-2 rounded-full inline-block" style={{ background: catCouleur(e.categoryId) }} />
                 {fdate(e.date)} · {catNom(e.categoryId)}
               </p>
-              {e.note && <p className="text-[13px] text-ink/70 mt-1 truncate">{e.note}</p>}
+              {e.note && <p className="text-[13px] texte-doux mt-1 truncate">{e.note}</p>}
             </div>
             <div className="flex flex-col gap-1 shrink-0">
               <button className="btn btn-ghost !p-2" onClick={() => onEditer(e)} aria-label="Modifier"><Icon name="pencil" className="w-4 h-4" /></button>
@@ -1079,7 +1183,7 @@ function FormDepense({ valeur, cats, onEnregistrer, onClose, onPhoto, onRemplace
            onClose={onClose}>
       {messageOCR && (
         <div className="rounded-xl p-3 mb-4 text-[13px] leading-relaxed"
-             style={{ background: 'rgba(15,118,110,.06)', color: '#0F766E' }}>
+             style={{ background: 'var(--accent-06)', color: 'var(--accent)' }}>
           {messageOCR}
         </div>
       )}
@@ -1088,7 +1192,7 @@ function FormDepense({ valeur, cats, onEnregistrer, onClose, onPhoto, onRemplace
         {f.photo && (
           <div className="flex gap-3 items-center">
             <button onClick={() => onPhoto(f.photo)} aria-label="Agrandir le ticket">
-              <img src={f.photo} alt="Ticket" className="w-20 h-20 rounded-xl object-cover" style={{ border: '1px solid #ECEAE4' }} />
+              <img src={f.photo} alt="Ticket" className="w-20 h-20 rounded-xl object-cover" style={{ border: '1px solid var(--ligne)' }} />
             </button>
             <div className="flex-1 space-y-2">
               <button className="btn btn-ghost !py-1.5 !px-3 !text-[13px] w-full" onClick={onRemplacerPhoto}>
@@ -1199,9 +1303,9 @@ function FormIdee({ valeur, cats, onEnregistrer, onClose }) {
         </div>
 
         <div className="rounded-xl px-4 py-3 flex items-center justify-between"
-             style={{ background: 'rgba(15,118,110,.06)' }}>
+             style={{ background: 'var(--accent-06)' }}>
           <span className="text-[13px] text-muted">Coût total estimé</span>
-          <span className="tnum font-semibold text-[17px]" style={{ color: '#0F766E' }}>{eur(total)}</span>
+          <span className="tnum font-semibold text-[17px]" style={{ color: 'var(--accent)' }}>{eur(total)}</span>
         </div>
 
         <Champ label="Catégorie">
@@ -1261,7 +1365,7 @@ function FormIdee({ valeur, cats, onEnregistrer, onClose }) {
    13. Onglet Réglages
    ══════════════════════════════════════════════════════════════ */
 
-function Reglages({ settings, cats, expenses, ideas, onSettings, onCats, onExportCSV, onExportIdees, onExportJSON, onImportJSON, onReset, catNom }) {
+function Reglages({ settings, cats, expenses, ideas, theme, prefTheme, onTheme, onSettings, onCats, onExportCSV, onExportIdees, onExportJSON, onImportJSON, onReset, catNom }) {
   const [s, setS] = useState(settings);
   const [budgetTxt, setBudgetTxt] = useState(String(settings.budget).replace('.', ','));
   useEffect(() => { setS(settings); setBudgetTxt(String(settings.budget).replace('.', ',')); }, [settings]);
@@ -1306,6 +1410,35 @@ function Reglages({ settings, cats, expenses, ideas, onSettings, onCats, onExpor
       </div>
 
       <div className="card p-5">
+        <h2 className="font-semibold text-[15px]">Apparence</h2>
+        <p className="text-[13px] text-muted mt-1">
+          Le raccourci en haut de l'écran bascule directement entre jour et nuit.
+        </p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[{ id: 'jour', libelle: 'Jour', icone: 'soleil' },
+            { id: 'nuit', libelle: 'Nuit', icone: 'lune' },
+            { id: 'auto', libelle: 'Système', icone: 'telephone' }].map((o) => {
+            const actif = prefTheme === o.id;
+            return (
+              <button key={o.id} onClick={() => onTheme(o.id)} aria-pressed={actif}
+                      className="flex flex-col items-center justify-center gap-2 py-4 rounded-xl text-[13px] font-medium"
+                      style={actif
+                        ? { background: 'var(--accent-10)', color: 'var(--accent)', border: '1px solid var(--accent)' }
+                        : { background: 'transparent', color: 'var(--muted)', border: '1px solid var(--champ-bord)' }}>
+                <Icon name={o.icone} className="w-[22px] h-[22px]" width={actif ? 1.9 : 1.6} />
+                {o.libelle}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[12.5px] text-muted mt-3 leading-relaxed">
+          {prefTheme === 'auto'
+            ? `Le thème suit le réglage du téléphone : actuellement en mode ${theme === 'nuit' ? 'nuit' : 'jour'}.`
+            : 'Le choix est conservé sur cet appareil, d’un lancement à l’autre.'}
+        </p>
+      </div>
+
+      <div className="card p-5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-[15px]">Catégories</h2>
@@ -1319,7 +1452,7 @@ function Reglages({ settings, cats, expenses, ideas, onSettings, onCats, onExpor
           {cats.map((c) => (
             <li key={c.id} className="flex items-center gap-3">
               <input type="color" value={c.color} onChange={(e) => modifierCat(c.id, { color: e.target.value })}
-                     className="w-9 h-9 rounded-lg shrink-0 cursor-pointer" style={{ border: '1px solid #E3E0D9', padding: 2, background: '#fff' }}
+                     className="w-9 h-9 rounded-lg shrink-0 cursor-pointer" style={{ border: '1px solid var(--champ-bord)', padding: 2, background: 'var(--carte)' }}
                      aria-label={'Couleur de ' + c.name} />
               <input className="field !py-2 flex-1" value={c.name} onChange={(e) => modifierCat(c.id, { name: e.target.value })} />
               <button className="btn btn-ghost !p-2 shrink-0" onClick={() => supprimerCat(c.id)}
@@ -1385,15 +1518,15 @@ function EcranScan({ scan, onPasser, onAnnuler }) {
       <div className="space-y-4">
         {scan.photo && (
           <img src={scan.photo} alt="Ticket en cours d'analyse"
-               className="w-full max-h-[38vh] object-contain rounded-xl" style={{ background: '#F3F1EC' }} />
+               className="w-full max-h-[38vh] object-contain rounded-xl" style={{ background: 'var(--fond-2)' }} />
         )}
         <div>
           <div className="flex justify-between text-[13px] mb-2">
             <span className="text-muted">{scan.etape}</span>
             <span className="tnum font-medium">{scan.progres != null ? scan.progres + ' %' : ''}</span>
           </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(26,26,26,.06)' }}>
-            <div style={{ width: (scan.progres != null ? scan.progres : 8) + '%', background: '#0F766E', height: '100%', transition: 'width .3s ease' }} />
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--voile-06)' }}>
+            <div style={{ width: (scan.progres != null ? scan.progres : 8) + '%', background: 'var(--accent)', height: '100%', transition: 'width .3s ease' }} />
           </div>
         </div>
         <div className="flex gap-2 pt-2">
@@ -1432,6 +1565,8 @@ function App() {
   const [toast, setToast] = useState(null);
   const [majDispo, setMajDispo] = useState(false);
   const [messageOCR, setMessageOCR] = useState(null);
+  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'jour');
+  const [prefTheme, setPrefTheme] = useState(() => (window.__BFC_THEME && window.__BFC_THEME.choix) || 'auto');
 
   const camRef = useRef(null);
   const galRef = useRef(null);
@@ -1480,8 +1615,36 @@ function App() {
 
   const notifier = (texte) => { setToast(texte); setTimeout(() => setToast(null), 3200); };
 
+  /* Choix du thème : 'jour', 'nuit' ou 'auto' (réglage du téléphone).
+     Utilisé par le raccourci en haut de l'écran comme par les Réglages. */
+  const choisirTheme = (choix) => {
+    setPrefTheme(choix);
+    try { localStorage.setItem('bfc-theme', choix); } catch (e) {}
+    const effectif = window.__BFC_THEME ? window.__BFC_THEME.appliquer(choix) : choix;
+    if (window.__BFC_THEME) window.__BFC_THEME.choix = choix;
+    setTheme(effectif);
+  };
+
+  /* Raccourci : bascule directe entre jour et nuit. */
+  const basculerTheme = () => choisirTheme(theme === 'nuit' ? 'jour' : 'nuit');
+
+  /* En mode « Système », on suit le téléphone s'il change en cours de route. */
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const surChangement = () => {
+      if (prefTheme === 'auto' && window.__BFC_THEME) setTheme(window.__BFC_THEME.appliquer('auto'));
+    };
+    if (mq.addEventListener) mq.addEventListener('change', surChangement);
+    else if (mq.addListener) mq.addListener(surChangement);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', surChangement);
+      else if (mq.removeListener) mq.removeListener(surChangement);
+    };
+  }, [prefTheme]);
+
   const catNom = useCallback((id) => (cats.find((c) => c.id === id) || {}).name || 'Sans catégorie', [cats]);
-  const catCouleur = useCallback((id) => (cats.find((c) => c.id === id) || {}).color || '#B5B0A7', [cats]);
+  const catCouleur = useCallback((id) => (cats.find((c) => c.id === id) || {}).color || 'var(--faible)', [cats]);
 
   /* ---- Écritures ---- */
   const enregistrerDepense = async (d) => {
@@ -1738,6 +1901,7 @@ function App() {
                         onSupprimer={(e) => setConfirm({ titre: 'Supprimer la dépense ?', texte: `« ${e.label} » (${eur(e.amount)}) sera définitivement supprimée.`, action: () => supprimerDepense(e) })}
                         onPhoto={setLightbox} />,
     reglages: <Reglages settings={settings} cats={cats} expenses={expenses} ideas={ideas}
+                        theme={theme} prefTheme={prefTheme} onTheme={choisirTheme}
                         onSettings={majSettings} onCats={majCats} onExportCSV={exportCSV}
                         onExportIdees={exportIdees} onExportJSON={exportJSON} onImportJSON={importJSON}
                         onReset={reinitialiser} catNom={catNom} />
@@ -1746,7 +1910,12 @@ function App() {
   const titreOnglet = ONGLETS.find((o) => o.id === onglet).libelle;
 
   return (
+    <ThemeCtx.Provider value={theme}>
     <div className="min-h-screen">
+      {/* Voile derrière l'heure et la batterie du téléphone */}
+      <div className="fixed top-0 inset-x-0 z-40 pointer-events-none"
+           style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--nav-fond)', backdropFilter: 'blur(10px)' }} />
+
       {/* Entrées fichiers masquées */}
       <input ref={camRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => surFichier(e, false)} />
       <input ref={galRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => surFichier(e, false)} />
@@ -1754,10 +1923,10 @@ function App() {
 
       {/* Barre latérale (desktop) */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 w-60 flex-col px-4 py-6"
-             style={{ borderRight: '1px solid #ECEAE4', background: '#fff' }}>
+             style={{ borderRight: '1px solid var(--ligne)', background: 'var(--carte)' }}>
         <div className="flex items-center gap-3 px-2">
-          <span className="w-10 h-10 rounded-xl grid place-items-center text-white font-semibold text-[13px]"
-                style={{ background: '#0F766E', letterSpacing: '.02em' }}>BFC</span>
+          <span className="w-10 h-10 rounded-xl grid place-items-center sur-accent font-semibold text-[13px]"
+                style={{ background: 'var(--accent)', letterSpacing: '.02em' }}>BFC</span>
           <div>
             <p className="font-semibold text-[15px] leading-tight">Suivi BFC</p>
             <p className="text-[12px] text-muted">{settings.periode}</p>
@@ -1768,8 +1937,8 @@ function App() {
             <button key={o.id} onClick={() => setOnglet(o.id)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14.5px] font-medium"
                     style={onglet === o.id
-                      ? { background: 'rgba(15,118,110,.09)', color: '#0F766E' }
-                      : { color: '#1A1A1A', background: 'transparent' }}>
+                      ? { background: 'var(--accent-10)', color: 'var(--accent)' }
+                      : { color: 'var(--texte)', background: 'transparent' }}>
               <Icon name={o.icone} className="w-[18px] h-[18px]" />{o.libelle}
             </button>
           ))}
@@ -1782,14 +1951,23 @@ function App() {
 
       {/* Contenu */}
       <div className="md:pl-60">
-        <header className="px-4 sm:px-6 pt-6 pb-1 md:pt-8">
+        <header className="px-4 sm:px-6 pb-1 safe-t">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
             <div>
               <h1 className="text-[22px] sm:text-[26px] font-semibold leading-tight">{titreOnglet}</h1>
               <p className="text-[13px] text-muted mt-0.5 md:hidden">{settings.periode}</p>
             </div>
-            <span className="md:hidden w-10 h-10 rounded-xl grid place-items-center text-white font-semibold text-[12.5px]"
-                  style={{ background: '#0F766E' }}>BFC</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={basculerTheme}
+                      className="btn btn-ghost !p-2.5 !rounded-full"
+                      aria-label={theme === 'nuit' ? 'Passer en mode jour' : 'Passer en mode nuit'}
+                      title={theme === 'nuit' ? 'Passer en mode jour' : 'Passer en mode nuit'}>
+                <Icon name={theme === 'nuit' ? 'lune' : 'soleil'} className="w-5 h-5"
+                      width={theme === 'nuit' ? 1.9 : 1.75} />
+              </button>
+              <span className="md:hidden w-10 h-10 rounded-xl grid place-items-center sur-accent font-semibold text-[12.5px]"
+                    style={{ background: 'var(--accent)' }}>BFC</span>
+            </div>
           </div>
         </header>
 
@@ -1800,11 +1978,11 @@ function App() {
 
       {/* Navigation par onglets (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 safe-b"
-           style={{ background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(10px)', borderTop: '1px solid #ECEAE4' }}>
+           style={{ background: 'var(--nav-fond)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--ligne)' }}>
         <div className="flex">
           {ONGLETS.map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)} className="flex-1 flex flex-col items-center gap-1 py-2.5"
-                    style={{ color: onglet === o.id ? '#0F766E' : '#8A857D' }} aria-current={onglet === o.id}>
+                    style={{ color: onglet === o.id ? 'var(--accent)' : 'var(--muted)' }} aria-current={onglet === o.id}>
               <Icon name={o.icone} className="w-[21px] h-[21px]" width={onglet === o.id ? 2 : 1.6} />
               <span className="text-[11px] font-medium">{o.court}</span>
             </button>
@@ -1815,18 +1993,18 @@ function App() {
       {/* Bouton flottant */}
       {onglet !== 'reglages' && (
         <button onClick={ouvrirCamera} aria-label="Scanner un ticket"
-                className="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full grid place-items-center text-white"
-                style={{ bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', background: '#0F766E', boxShadow: '0 10px 24px -8px rgba(15,118,110,.6)' }}>
+                className="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full grid place-items-center sur-accent"
+                style={{ bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))', background: 'var(--accent)', boxShadow: 'var(--ombre-flottant)' }}>
           <Icon name="camera" className="w-6 h-6" width={1.9} />
         </button>
       )}
 
       {/* Bandeau de mise à jour */}
       {majDispo && (
-        <div className="fixed left-1/2 -translate-x-1/2 z-40 fade-in w-[92%] max-w-sm"
+        <div className="fixed inset-x-0 px-4 z-40 pop-in flex justify-center"
              style={{ bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}>
-          <div className="rounded-2xl px-4 py-3 flex items-center gap-3 text-white"
-               style={{ background: '#1A1A1A', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>
+          <div className="rounded-2xl px-4 py-3 flex items-center gap-3 text-white w-full max-w-sm"
+               style={{ background: 'var(--toast-fond)', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>
             <Icon name="refresh" className="w-4 h-4 shrink-0" />
             <span className="text-[13.5px] flex-1">Nouvelle version disponible</span>
             <button className="text-[13.5px] font-semibold underline underline-offset-2" onClick={rechargerApp}>Recharger</button>
@@ -1837,10 +2015,10 @@ function App() {
 
       {/* Notifications */}
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 z-40 fade-in"
+        <div className="fixed inset-x-0 px-4 z-40 pop-in flex justify-center"
              style={{ bottom: 'calc(' + (majDispo ? '148px' : '88px') + ' + env(safe-area-inset-bottom, 0px))' }}>
           <div className="rounded-full px-4 py-2.5 text-white text-[13.5px]"
-               style={{ background: '#1A1A1A', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>{toast}</div>
+               style={{ background: 'var(--toast-fond)', boxShadow: '0 12px 30px -12px rgba(0,0,0,.5)' }}>{toast}</div>
         </div>
       )}
 
@@ -1866,12 +2044,15 @@ function App() {
         <div className="fixed inset-0 z-[60] veil-in grid place-items-center p-4"
              style={{ background: 'rgba(26,26,26,.9)' }} onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="Ticket" className="max-w-full max-h-full rounded-xl object-contain" />
-          <button className="absolute top-4 right-4 text-white p-2" onClick={() => setLightbox(null)} aria-label="Fermer">
+          <button className="absolute right-4 text-white p-2"
+                  style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+                  onClick={() => setLightbox(null)} aria-label="Fermer">
             <Icon name="x" className="w-6 h-6" />
           </button>
         </div>
       )}
     </div>
+    </ThemeCtx.Provider>
   );
 }
 
