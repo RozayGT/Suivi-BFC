@@ -15,7 +15,7 @@
      et reportez la même valeur ligne 20 de index.html.
    ══════════════════════════════════════════════════════════════════════ */
 
-const VERSION = '1.2';
+const VERSION = '1.3';
 
 const CACHE_APP = 'bfc-app-' + VERSION;   // fichiers du site (change à chaque version)
 const CACHE_LIB = 'bfc-lib-1';            // CDN et polices (change rarement)

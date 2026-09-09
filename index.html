@@ -43,7 +43,7 @@
    Le numéro s'affiche en bas de l'onglet « Réglages » : c'est ainsi que
    vous vérifiez que le téléphone a bien reçu la dernière version.
    ══════════════════════════════════════════════════════════════════════ */
-window.__BFC_VERSION = '1.2';
+window.__BFC_VERSION = '1.3';
 </script>
 
 <link rel="manifest" href="./manifest.webmanifest" />
@@ -277,7 +277,8 @@ const ICONS = {
   soleil: [[12, 12, 4], 'M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41',
            'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'],
   lune: ['M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'],
-  telephone: ['M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z', 'M12 18h.01']
+  telephone: ['M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z', 'M12 18h.01'],
+  aide: [[12, 12, 10], 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3', 'M12 17h.01']
 };
 
 function Icon({ name, className = 'w-5 h-5', width = 1.75 }) {
@@ -364,29 +365,45 @@ const CATS_DEFAUT = [
   { id: 'c-div', name: 'Divers', color: '#A98D6B' }
 ];
 
+const ANNEE = new Date().getFullYear();
+
 const SETTINGS_DEFAUT = {
   key: 'main',
-  budget: 6000,
-  periode: 'Année 2026',
-  debut: '2026-01-01',
-  fin: '2026-12-31',
-  seeded: false
+  budget: 0,
+  periode: 'Année ' + ANNEE,
+  debut: ANNEE + '-01-01',
+  fin: ANNEE + '-12-31',
+  seeded: false,
+  tutoVu: false
 };
 
-const EXEMPLES_DEPENSES = [
-  { id: 'e1', label: 'LDLC', amount: 1249.9, date: '2026-03-12', categoryId: 'c-info', note: 'Deux écrans 27 pouces', photo: null },
-  { id: 'e2', label: 'BUREAU VALLEE', amount: 187.4, date: '2026-04-04', categoryId: 'c-bur', note: 'Cartouches et ramettes A4', photo: null },
-  { id: 'e3', label: 'IKEA', amount: 642, date: '2026-05-22', categoryId: 'c-mob', note: 'Deux fauteuils de bureau', photo: null },
-  { id: 'e4', label: 'LEROY MERLIN', amount: 96.75, date: '2026-06-09', categoryId: 'c-out', note: 'Perceuse et coffret de forets', photo: null },
-  { id: 'e5', label: 'CARREFOUR', amount: 58.3, date: '2026-07-17', categoryId: 'c-cons', note: 'Café, thé, gobelets', photo: null },
-  { id: 'e6', label: 'LA BOULANGERIE DU COIN', amount: 74.2, date: '2026-09-03', categoryId: 'c-rest', note: "Petit-déjeuner de l'équipe", photo: null }
-];
-
-const EXEMPLES_IDEES = [
-  { id: 'i1', title: "Stations d'accueil USB-C", description: 'Pour les trois postes en télétravail alterné.', categoryId: 'c-info', unitPrice: 149, qty: 3, supplier: 'LDLC', priority: 'haute', requester: 'Camille', status: 'validee' },
-  { id: 'i2', title: 'Armoire à dossiers', description: 'Rangement des archives du service.', categoryId: 'c-mob', unitPrice: 289, qty: 1, supplier: 'Manutan', priority: 'moyenne', requester: 'Samir', status: 'idee' },
-  { id: 'i3', title: 'Casques antibruit', description: 'Open space bruyant côté couloir.', categoryId: 'c-info', unitPrice: 89.9, qty: 4, supplier: 'Boulanger', priority: 'moyenne', requester: 'Léa', status: 'commandee' },
-  { id: 'i4', title: "Machine à café de l'open space", description: 'Remplacement de la cafetière actuelle.', categoryId: 'c-rest', unitPrice: 379, qty: 1, supplier: 'Darty', priority: 'basse', requester: 'Julien', status: 'idee' }
+/* ── Tutoriel affiché au premier lancement, revisitable depuis les Réglages ── */
+const ETAPES_TUTO = [
+  {
+    icone: 'wallet',
+    titre: 'Bienvenue dans Suivi BFC',
+    texte: "Cette application suit le budget de fonctionnement courant de votre équipe : ce qui est dépensé, ce qui est engagé, ce qu'il reste. Tout est enregistré sur cet appareil, rien n'est envoyé sur Internet."
+  },
+  {
+    icone: 'reglages',
+    titre: 'Commencez par le budget',
+    texte: "Dans l'onglet Réglages, indiquez le montant de l'enveloppe et la période concernée. C'est aussi là que vous renommez les catégories et choisissez leurs couleurs."
+  },
+  {
+    icone: 'camera',
+    titre: 'Scannez vos tickets',
+    texte: "Le bouton vert ouvre l'appareil photo. Le montant, la date et l'enseigne sont lus directement sur le téléphone et remplissent le formulaire : vous vérifiez, vous corrigez au besoin, puis vous enregistrez. Rien n'est jamais enregistré sans votre accord, et la saisie à la main reste possible."
+  },
+  {
+    icone: 'idee',
+    titre: "Notez les idées d'achat",
+    texte: "Une idée passe de Idée à Validée, Commandée puis Achetée. Dès qu'elle est validée, son montant compte comme engagé et réduit le budget restant. Le jour de l'achat, « Convertir en dépense » remplit le formulaire pour vous."
+  },
+  {
+    icone: 'bord',
+    titre: 'Suivez, puis sauvegardez',
+    texte: "Le tableau de bord montre la répartition par catégorie et le rythme des dépenses. Les données vivant uniquement sur cet appareil, exportez de temps en temps une sauvegarde depuis les Réglages. Vous pourrez revoir ce guide au même endroit."
+  }
 ];
 
 const PRIORITES = { haute: 'Haute', moyenne: 'Moyenne', basse: 'Basse' };
@@ -752,7 +769,7 @@ function Histogramme({ donnees }) {
   );
 }
 
-function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepense, catNom, catCouleur }) {
+function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepense, onReglages, catNom, catCouleur }) {
   const depense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const engage = ideas.filter((i) => STATUTS_ENGAGES.includes(i.status))
                       .reduce((s, i) => s + (i.unitPrice || 0) * (i.qty || 1), 0);
@@ -760,7 +777,7 @@ function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepens
   const restant = budget - depense - engage;
   const pctD = budget ? (depense / budget) * 100 : 0;
   const pctE = budget ? (engage / budget) * 100 : 0;
-  const depassement = restant < 0;
+  const depassement = budget > 0 && restant < 0;
   const tension = !depassement && budget > 0 && (depense + engage) / budget >= 0.85;
 
   const parCategorie = useMemo(() => {
@@ -800,6 +817,12 @@ function TableauDeBord({ settings, expenses, ideas, cats, onScan, onOuvrirDepens
         <p className="text-[12px] text-muted mt-2 tnum">
           {Math.round(pctD)} % dépensé · {Math.round(pctE)} % engagé
         </p>
+
+        {!budget && (
+          <button className="btn btn-soft w-full mt-4" onClick={onReglages}>
+            <Icon name="reglages" className="w-4 h-4" />Définir le budget alloué
+          </button>
+        )}
 
         <div className="hair mt-5 pt-5 flex gap-4">
           <Kpi libelle="Dépensé" montant={depense} couleur="var(--texte)" note={expenses.length + ' dépense' + (expenses.length > 1 ? 's' : '')} />
@@ -1365,7 +1388,7 @@ function FormIdee({ valeur, cats, onEnregistrer, onClose }) {
    13. Onglet Réglages
    ══════════════════════════════════════════════════════════════ */
 
-function Reglages({ settings, cats, expenses, ideas, theme, prefTheme, onTheme, onSettings, onCats, onExportCSV, onExportIdees, onExportJSON, onImportJSON, onReset, catNom }) {
+function Reglages({ settings, cats, expenses, ideas, theme, prefTheme, onTheme, onTutoriel, onSettings, onCats, onExportCSV, onExportIdees, onExportJSON, onImportJSON, onReset, catNom }) {
   const [s, setS] = useState(settings);
   const [budgetTxt, setBudgetTxt] = useState(String(settings.budget).replace('.', ','));
   useEffect(() => { setS(settings); setBudgetTxt(String(settings.budget).replace('.', ',')); }, [settings]);
@@ -1491,10 +1514,19 @@ function Reglages({ settings, cats, expenses, ideas, theme, prefTheme, onTheme, 
       </div>
 
       <div className="card p-5">
+        <h2 className="font-semibold text-[15px]">Aide</h2>
+        <p className="text-[13px] text-muted mt-1">Le guide affiché au premier lancement.</p>
+        <button className="btn btn-ghost mt-4" onClick={onTutoriel}>
+          <Icon name="aide" className="w-4 h-4" />Revoir le tutoriel
+        </button>
+      </div>
+
+      <div className="card p-5">
         <h2 className="font-semibold text-[15px]">Réinitialisation</h2>
         <p className="text-[13px] text-muted mt-1 leading-relaxed">
-          Efface les {expenses.length} dépenses, les {ideas.length} idées et les réglages de cet appareil,
-          puis recharge les données d'exemple.
+          Efface les {expenses.length} dépense{expenses.length > 1 ? 's' : ''} et
+          les {ideas.length} idée{ideas.length > 1 ? 's' : ''} de cet appareil.
+          L'application repart vide, avec les catégories par défaut et le tutoriel.
         </p>
         <button className="btn btn-danger mt-4" onClick={onReset}>
           <Icon name="reset" className="w-4 h-4" />Réinitialiser les données
@@ -1504,6 +1536,69 @@ function Reglages({ settings, cats, expenses, ideas, theme, prefTheme, onTheme, 
       <p className="text-center text-[12px] text-muted pb-2">
         Suivi BFC · version {window.__BFC_VERSION || '1.0'} · données stockées localement
       </p>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   13 bis. Tutoriel
+   ══════════════════════════════════════════════════════════════ */
+
+function Tutoriel({ onTerminer }) {
+  const [etape, setEtape] = useState(0);
+  const e = ETAPES_TUTO[etape];
+  const dernier = etape === ETAPES_TUTO.length - 1;
+
+  useEffect(() => {
+    verrouDefilement += 1;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      verrouDefilement = Math.max(0, verrouDefilement - 1);
+      if (verrouDefilement === 0) document.body.style.overflow = '';
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center veil-in"
+         style={{ background: 'var(--voile)', backdropFilter: 'blur(2px)' }}>
+      <div className="sheet-in w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl px-6 pt-8 pb-6 safe-b"
+           style={{ background: 'var(--carte)' }}>
+        <div className="w-14 h-14 rounded-2xl grid place-items-center mx-auto"
+             style={{ background: 'var(--accent-08)', color: 'var(--accent)' }}>
+          <Icon name={e.icone} className="w-7 h-7" width={1.7} />
+        </div>
+
+        <h2 className="text-[19px] font-semibold text-center mt-5 leading-snug">{e.titre}</h2>
+        <p key={etape} className="fade-in text-[14.5px] texte-doux text-center mt-3 leading-relaxed">{e.texte}</p>
+
+        <div className="flex justify-center gap-1.5 mt-7" aria-hidden="true">
+          {ETAPES_TUTO.map((_, k) => (
+            <span key={k} className="rounded-full"
+                  style={{ width: k === etape ? 20 : 6, height: 6, transition: 'width .2s ease, background-color .2s ease',
+                           background: k === etape ? 'var(--accent)' : 'var(--champ-bord)' }} />
+          ))}
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          {etape > 0 && (
+            <button className="btn btn-ghost" onClick={() => setEtape(etape - 1)}>Précédent</button>
+          )}
+          <button className="btn btn-primary flex-1"
+                  onClick={() => (dernier ? onTerminer() : setEtape(etape + 1))}>
+            {dernier ? "C'est parti" : 'Suivant'}
+            {!dernier && <Icon name="chevron" className="w-4 h-4" />}
+          </button>
+        </div>
+
+        <button className="w-full text-center text-[13px] text-muted mt-4 py-1"
+                onClick={onTerminer}>
+          {dernier ? 'Fermer' : 'Passer le tutoriel'}
+        </button>
+
+        <p className="text-center text-[12px] text-muted mt-3">
+          Vous pourrez le revoir dans Réglages → Aide.
+        </p>
+      </div>
     </div>
   );
 }
@@ -1567,6 +1662,7 @@ function App() {
   const [messageOCR, setMessageOCR] = useState(null);
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'jour');
   const [prefTheme, setPrefTheme] = useState(() => (window.__BFC_THEME && window.__BFC_THEME.choix) || 'auto');
+  const [tuto, setTuto] = useState(false);
 
   const camRef = useRef(null);
   const galRef = useRef(null);
@@ -1584,19 +1680,18 @@ function App() {
         let e = await dbAll('expenses');
         let i = await dbAll('ideas');
 
+        /* Premier lancement : aucune donnée, seulement les catégories par défaut. */
         if (!s.seeded) {
           c = CATS_DEFAUT;
-          e = EXEMPLES_DEPENSES.map((x) => ({ ...x, createdAt: Date.now() }));
-          i = EXEMPLES_IDEES.map((x) => ({ ...x, createdAt: Date.now() }));
-          s = { ...SETTINGS_DEFAUT, seeded: true };
+          e = []; i = [];
+          s = { ...SETTINGS_DEFAUT, seeded: true, tutoVu: false };
           await dbPutMany('categories', c);
-          await dbPutMany('expenses', e);
-          await dbPutMany('ideas', i);
           await dbPut('settings', s);
         }
         if (!c.length) { c = CATS_DEFAUT; await dbPutMany('categories', c); }
 
         setSettings(s); setCats(c); setExpenses(e); setIdeas(i);
+        if (!s.tutoVu) setTuto(true);
       } catch (err) {
         console.error(err);
         notifier("Stockage local indisponible. Vérifiez que la navigation privée est désactivée.");
@@ -1678,6 +1773,12 @@ function App() {
   };
 
   const majSettings = async (s) => { const v = { ...s, key: 'main' }; await dbPut('settings', v); setSettings(v); };
+
+  /* Le tutoriel ne se rouvre plus tout seul une fois parcouru. */
+  const terminerTuto = () => {
+    setTuto(false);
+    if (!settings.tutoVu) majSettings({ ...settings, tutoVu: true });
+  };
 
   const majCats = async (nouvelles, supprimee) => {
     const repli = nouvelles[0]?.id;
@@ -1843,19 +1944,17 @@ function App() {
   const reinitialiser = () => {
     setConfirm({
       titre: 'Réinitialiser les données ?',
-      texte: 'Toutes les dépenses, idées, photos et réglages de cet appareil seront effacés, puis les données d\u2019exemple seront rechargées. Cette action est définitive.',
+      texte: 'Toutes les dépenses, idées, photos et réglages de cet appareil seront effacés. L\u2019application repart vide, avec les catégories par défaut et le tutoriel. Cette action est définitive.',
       libelle: 'Réinitialiser',
       action: async () => {
         for (const s of STORES) await dbClear(s);
         const c = CATS_DEFAUT;
-        const e = EXEMPLES_DEPENSES.map((x) => ({ ...x, createdAt: Date.now() }));
-        const i = EXEMPLES_IDEES.map((x) => ({ ...x, createdAt: Date.now() }));
-        const s = { ...SETTINGS_DEFAUT, seeded: true };
-        await dbPutMany('categories', c); await dbPutMany('expenses', e);
-        await dbPutMany('ideas', i); await dbPut('settings', s);
-        setCats(c); setExpenses(e); setIdeas(i); setSettings(s);
-        setOnglet('bord');
-        notifier('Données réinitialisées.');
+        const s = { ...SETTINGS_DEFAUT, seeded: true, tutoVu: false };
+        await dbPutMany('categories', c);
+        await dbPut('settings', s);
+        setCats(c); setExpenses([]); setIdeas([]); setSettings(s);
+        setOnglet('bord'); setTuto(true);
+        notifier('Données effacées.');
       }
     });
   };
@@ -1887,6 +1986,7 @@ function App() {
   const contenu = {
     bord: <TableauDeBord settings={settings} expenses={expenses} ideas={ideas} cats={cats}
                          catNom={catNom} catCouleur={catCouleur} onScan={ouvrirCamera}
+                         onReglages={() => setOnglet('reglages')}
                          onOuvrirDepense={(e) => { setMessageOCR(null); setDepenseEdit(e); }} />,
     idees: <Idees ideas={ideas} cats={cats} settings={settings} expenses={expenses}
                   catNom={catNom} catCouleur={catCouleur}
@@ -1902,6 +2002,7 @@ function App() {
                         onPhoto={setLightbox} />,
     reglages: <Reglages settings={settings} cats={cats} expenses={expenses} ideas={ideas}
                         theme={theme} prefTheme={prefTheme} onTheme={choisirTheme}
+                        onTutoriel={() => setTuto(true)}
                         onSettings={majSettings} onCats={majCats} onExportCSV={exportCSV}
                         onExportIdees={exportIdees} onExportJSON={exportJSON} onImportJSON={importJSON}
                         onReset={reinitialiser} catNom={catNom} />
@@ -2023,6 +2124,8 @@ function App() {
       )}
 
       {/* Fenêtres */}
+      {tuto && <Tutoriel onTerminer={terminerTuto} />}
+
       {scan && <EcranScan scan={scan} onPasser={() => arreterScan(true)} onAnnuler={() => arreterScan(false)} />}
 
       {depenseEdit && (
